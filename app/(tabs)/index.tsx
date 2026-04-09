@@ -1,7 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AlertBanner } from '@/src/components/AlertBanner';
 import { Button } from '@/src/components/Button';
@@ -9,6 +8,7 @@ import { Card } from '@/src/components/Card';
 import { LoadingState } from '@/src/components/LoadingState';
 import { OfflineBanner } from '@/src/components/OfflineBanner';
 import { StatusBadge } from '@/src/components/StatusBadge';
+import { SymbolIcon } from '@/src/components/symbol-icon';
 import { TabSwipeGesture } from '@/src/components/TabSwipeGesture';
 import { useGlobalAlert, useStatusPoll, useVisionPoll } from '@/src/hooks/appHooks';
 import { useLanguage } from '@/src/i18n';
@@ -21,6 +21,7 @@ import { localizeVisionAlertValue } from '@/src/utils/valueLabels';
 export default function HomeScreen() {
   const { t } = useLanguage();
   const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
   const status = useStatusPoll();
   const vision = useVisionPoll(Boolean(status.data?.camera_active));
@@ -37,17 +38,25 @@ export default function HomeScreen() {
 
   return (
     <TabSwipeGesture currentPath="/(tabs)">
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {isOffline && <OfflineBanner message={t.offline} />}
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+    <View style={styles.container}>
+      {isOffline && (
+        <View style={[styles.offlineWrapper, { paddingTop: insets.top }]}>
+          <OfflineBanner message={t.offline} />
+        </View>
+      )}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + spacing.sm, spacing.xl) }]}
+        contentInsetAdjustmentBehavior="never"
+        showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>{t.appName}</Text>
-            <Text style={styles.subtitle}>{t.appSubtitle}</Text>
-          </View>
           <View style={styles.logoContainer}>
-            <Ionicons name="shield-checkmark" size={40} color={colors.primary} />
+            <Image
+              source={require('../../assets/images/logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
           </View>
         </View>
 
@@ -73,7 +82,7 @@ export default function HomeScreen() {
         {vision.data && (
           <Card>
             <View style={styles.cardHeader}>
-              <Ionicons name="eye" size={24} color={colors.primary} />
+              <SymbolIcon sf="eye.fill" fallbackName="eye" size={24} color={colors.primary} />
               <Text style={styles.sectionTitle}>{t.visionAlert}</Text>
             </View>
             <View style={styles.summaryRow}>
@@ -112,7 +121,7 @@ export default function HomeScreen() {
           </View>
         </Card>
       </ScrollView>
-    </SafeAreaView>
+    </View>
     </TabSwipeGesture>
   );
 }
@@ -123,40 +132,36 @@ function createStyles(colors: AppColors) {
       flex: 1,
       backgroundColor: colors.background,
     },
+    offlineWrapper: {
+      backgroundColor: colors.background,
+    },
     scroll: {
       flex: 1,
     },
     content: {
       padding: spacing.md,
-      paddingTop: spacing.lg,
       paddingBottom: spacing.xl,
       gap: spacing.lg,
     },
     header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
+      justifyContent: 'center',
       alignItems: 'center',
       marginBottom: spacing.sm,
     },
     logoContainer: {
-      width: 56,
-      height: 56,
-      borderRadius: 16,
+      width: 88,
+      height: 88,
+      borderRadius: 24,
       backgroundColor: `${colors.primary}12`,
+      borderWidth: 1,
+      borderColor: colors.border,
       alignItems: 'center',
       justifyContent: 'center',
+      boxShadow: colors.cardShadow,
     },
-    title: {
-      fontSize: 32,
-      fontWeight: '700',
-      color: colors.text,
-      letterSpacing: 0.5,
-    },
-    subtitle: {
-      fontSize: typography.body,
-      color: colors.muted,
-      fontWeight: '500',
-      marginTop: spacing.xs,
+    logoImage: {
+      width: 72,
+      height: 72,
     },
     sectionTitle: {
       fontSize: typography.heading,

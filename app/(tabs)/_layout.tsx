@@ -1,10 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Tabs } from 'expo-router';
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { SymbolIcon } from '@/src/components/symbol-icon';
 import { useLanguage } from '@/src/i18n';
 import type { AppColors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
@@ -14,30 +14,33 @@ import { typography } from '@/src/theme/typography';
 function createTabStyles(colors: AppColors, bottomInset: number) {
   return StyleSheet.create({
     wrapper: {
-      borderTopWidth: 0,
       backgroundColor: colors.background,
-      paddingTop: spacing.sm,
+      borderTopWidth: 1,
+      borderTopColor: `${colors.border}A0`,
+      paddingTop: spacing.xs,
       paddingBottom: Math.max(bottomInset, spacing.sm),
     },
     content: {
-      paddingHorizontal: spacing.sm,
+      paddingHorizontal: spacing.md,
       gap: spacing.sm,
       alignItems: 'center',
     },
     item: {
-      minWidth: 110,
+      minWidth: 116,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing.xs,
-      borderRadius: 14,
-      paddingVertical: spacing.sm,
+      borderRadius: 18,
+      borderCurve: 'continuous',
+      paddingVertical: spacing.sm + 2,
       paddingHorizontal: spacing.md,
       borderWidth: 1,
     },
     text: {
       fontSize: typography.label,
       fontWeight: '700',
+      letterSpacing: 0.2,
     },
   });
 }
@@ -93,6 +96,7 @@ function HorizontalTabBar({ state, descriptors, navigation }: BottomTabBarProps)
                 {
                   backgroundColor: isFocused ? `${colors.primary}1A` : colors.background,
                   borderColor: baseBorderColor,
+                  boxShadow: isFocused ? colors.buttonShadow : undefined,
                 },
               ]}
               accessibilityRole="button"
@@ -117,34 +121,49 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         headerShown: false,
+        animation: 'shift',
+        transitionSpec: {
+          animation: 'timing',
+          config: {
+            duration: 220,
+          },
+        },
         tabBar: (props) => <HorizontalTabBar {...props} />,
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: t.home,
-          tabBarIcon: ({ color }) => <Ionicons size={24} name="home" color={String(color)} />,
+          tabBarIcon: ({ color }) => (
+            <SymbolIcon sf="house.fill" fallbackName="home" size={24} color={String(color)} />
+          ),
         }}
       />
       <Tabs.Screen
         name="sensors"
         options={{
           title: t.sensors,
-          tabBarIcon: ({ color }) => <Ionicons size={24} name="speedometer" color={String(color)} />,
+          tabBarIcon: ({ color }) => (
+            <SymbolIcon sf="speedometer" fallbackName="speedometer" size={24} color={String(color)} />
+          ),
         }}
       />
       <Tabs.Screen
         name="camera"
         options={{
           title: t.camera,
-          tabBarIcon: ({ color }) => <Ionicons size={24} name="camera" color={String(color)} />,
+          tabBarIcon: ({ color }) => (
+            <SymbolIcon sf="camera.fill" fallbackName="camera" size={24} color={String(color)} />
+          ),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: t.settings,
-          tabBarIcon: ({ color }) => <Ionicons size={24} name="settings" color={String(color)} />,
+          tabBarIcon: ({ color }) => (
+            <SymbolIcon sf="gearshape.fill" fallbackName="settings" size={24} color={String(color)} />
+          ),
         }}
       />
     </Tabs>

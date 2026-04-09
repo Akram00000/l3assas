@@ -1,24 +1,22 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { PredictRequest } from '@/src/api/types';
 import { Button } from '@/src/components/Button';
 import { Card } from '@/src/components/Card';
 import { LoadingState } from '@/src/components/LoadingState';
-import { SliderInput } from '@/src/components/SliderInput';
+import { SymbolIcon } from '@/src/components/symbol-icon';
 import { TabSwipeGesture } from '@/src/components/TabSwipeGesture';
 import { usePredictPoll } from '@/src/hooks/appHooks';
 import { useLanguage } from '@/src/i18n';
 import type { AppColors } from '@/src/theme/colors';
-import { getSpreadColor } from '@/src/theme/colors';
+import { getAlertColor, getSpreadColor } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
 import { useAppTheme } from '@/src/theme/theme-context';
 import { typography } from '@/src/theme/typography';
 import { localizeAlertValue, localizeGasClassValue, localizeSpreadLevelValue } from '@/src/utils/valueLabels';
 
-const DEFAULT_VALUES: PredictRequest = {
+const SERVER_API_PAYLOAD: PredictRequest = {
   mq2: 100,
   mq6: 80,
   temperature: 20,
@@ -31,39 +29,50 @@ const DEFAULT_VALUES: PredictRequest = {
 export default function SensorsScreen() {
   const { t } = useLanguage();
   const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
-  const [values, setValues] = useState<PredictRequest>(DEFAULT_VALUES);
-  const [enabled, setEnabled] = useState(false);
-  const result = usePredictPoll(values, enabled);
+  const result = usePredictPoll(SERVER_API_PAYLOAD, true);
 
-  const setValue = <K extends keyof PredictRequest>(key: K, next: PredictRequest[K]) =>
-    setValues((prev) => ({ ...prev, [key]: next }));
+  const fixedInputs = [
+    { label: t.mq2, value: SERVER_API_PAYLOAD.mq2 },
+    { label: t.mq6, value: SERVER_API_PAYLOAD.mq6 },
+    { label: t.temperature, value: `${SERVER_API_PAYLOAD.temperature}°C` },
+    { label: t.humidity, value: `${SERVER_API_PAYLOAD.rh}%` },
+    { label: t.wind, value: SERVER_API_PAYLOAD.wind },
+    { label: t.rain, value: `${SERVER_API_PAYLOAD.rain} mm` },
+    { label: t.month, value: SERVER_API_PAYLOAD.month_num },
+  ];
 
   return (
     <TabSwipeGesture currentPath="/(tabs)/sensors">
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        {/* Sensor Inputs */}
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + spacing.sm, spacing.xl) }]}
+        contentInsetAdjustmentBehavior="never"
+        showsVerticalScrollIndicator={false}>
+        {/* Fixed Sensor Inputs (server API payload) */}
         <Card>
           <View style={styles.cardHeader}>
-            <Ionicons name="options" size={24} color={colors.primary} />
+            <SymbolIcon sf="slider.horizontal.3" fallbackName="options" size={24} color={colors.primary} />
             <Text style={styles.sectionTitle}>{t.sensors}</Text>
           </View>
-          <View style={styles.inputsContainer}>
-            <SliderInput label={t.mq2} value={values.mq2} min={0} max={1023} step={1} onChange={(v) => setValue('mq2', v)} />
-            <SliderInput label={t.mq6} value={values.mq6} min={0} max={1023} step={1} onChange={(v) => setValue('mq6', v)} />
-            <SliderInput label={t.temperature} value={values.temperature} min={-10} max={50} step={1} unit="°C" onChange={(v) => setValue('temperature', v)} />
-            <SliderInput label={t.humidity} value={values.rh} min={0} max={100} step={1} unit="%" onChange={(v) => setValue('rh', v)} />
-            <SliderInput label={t.wind} value={values.wind} min={0} max={80} step={1} onChange={(v) => setValue('wind', v)} />
-            <SliderInput label={t.rain} value={values.rain} min={0} max={50} step={0.5} unit="mm" onChange={(v) => setValue('rain', v)} />
-            <SliderInput label={t.month} value={values.month_num} min={1} max={12} step={1} onChange={(v) => setValue('month_num', v)} />
+          <View style={styles.fixedInputsContainer}>
+            {fixedInputs.map((item) => (
+              <View key={String(item.label)} style={styles.fixedInputRow}>
+                <Text style={styles.fixedInputLabel}>{item.label}</Text>
+                <Text style={styles.fixedInputValue}>{item.value}</Text>
+              </View>
+            ))}
           </View>
           <Button
-            title={t.submit}
-            onPress={() => setEnabled(true)}
+            title={t.retry}
+            onPress={() => {
+              void result.refetch();
+            }}
             icon="send"
             variant="primary"
-            loading={result.isLoading}
+            loading={result.isFetching}
           />
         </Card>
 
@@ -72,31 +81,31 @@ export default function SensorsScreen() {
           <>
             <Card>
               <View style={styles.cardHeader}>
-                <Ionicons name="analytics" size={24} color={colors.primary} />
+                <SymbolIcon sf="chart.bar.xaxis" fallbackName="stats-chart" size={24} color={colors.primary} />
                 <Text style={styles.sectionTitle}>{t.results}</Text>
               </View>
               <View style={styles.resultsGrid}>
                 <View style={styles.resultItem}>
                   <Text style={styles.resultLabel}>{t.alert}</Text>
-                  <Text style={[styles.resultValue, { color: colors.danger }]}>
+                  <Text selectable style={[styles.resultValue, { color: getAlertColor(result.data.alert, colors) }]}> 
                     {localizeAlertValue(result.data.alert, t)}
                   </Text>
                 </View>
                 <View style={styles.resultItem}>
                   <Text style={styles.resultLabel}>{t.smokeProb}</Text>
-                  <Text style={styles.resultValue}>{Math.round(result.data.smoke_prob * 100)}%</Text>
+                  <Text selectable style={styles.resultValue}>{Math.round(result.data.smoke_prob * 100)}%</Text>
                 </View>
                 <View style={styles.resultItem}>
                   <Text style={styles.resultLabel}>{t.fireRisk}</Text>
-                  <Text style={styles.resultValue}>{Math.round(result.data.fire_risk_prob * 100)}%</Text>
+                  <Text selectable style={styles.resultValue}>{Math.round(result.data.fire_risk_prob * 100)}%</Text>
                 </View>
                 <View style={styles.resultItem}>
                   <Text style={styles.resultLabel}>{t.gasClass}</Text>
-                  <Text style={styles.resultValue}>{localizeGasClassValue(result.data.gas_class, t)}</Text>
+                  <Text selectable style={styles.resultValue}>{localizeGasClassValue(result.data.gas_class, t)}</Text>
                 </View>
                 <View style={styles.resultItem}>
                   <Text style={styles.resultLabel}>{t.confidence}</Text>
-                  <Text style={styles.resultValue}>{Math.round(result.data.confidence * 100)}%</Text>
+                  <Text selectable style={styles.resultValue}>{Math.round(result.data.confidence * 100)}%</Text>
                 </View>
               </View>
 
@@ -108,7 +117,7 @@ export default function SensorsScreen() {
                     {Object.entries(result.data.class_proba).map(([key, value]) => (
                       <View key={key} style={styles.probabilityItem}>
                         <Text style={styles.probabilityLabel}>{localizeGasClassValue(key, t)}</Text>
-                        <Text style={styles.probabilityValue}>{Math.round((value ?? 0) * 100)}%</Text>
+                        <Text selectable style={styles.probabilityValue}>{Math.round((value ?? 0) * 100)}%</Text>
                       </View>
                     ))}
                   </View>
@@ -121,8 +130,13 @@ export default function SensorsScreen() {
                   <Text style={styles.subsectionTitle}>{t.gatesApplied}</Text>
                   {result.data.gates_applied.map((gate, idx) => (
                     <View key={idx} style={styles.gateItem}>
-                      <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
-                      <Text style={styles.gateText}>{gate.label}</Text>
+                      <SymbolIcon
+                        sf="checkmark.circle.fill"
+                        fallbackName="checkmark-circle"
+                        size={16}
+                        color={colors.primary}
+                      />
+                      <Text selectable style={styles.gateText}>{gate.label}</Text>
                     </View>
                   ))}
                 </View>
@@ -132,39 +146,26 @@ export default function SensorsScreen() {
             {/* Spread Speed */}
             <Card>
               <View style={styles.cardHeader}>
-                <Ionicons name="flame" size={24} color={colors.warning} />
+                <SymbolIcon sf="flame.fill" fallbackName="flame" size={24} color={colors.warning} />
                 <Text style={styles.sectionTitle}>{t.spreadSpeed}</Text>
               </View>
               <View style={styles.spreadHeader}>
                 <View style={styles.spreadMain}>
                   <Text style={styles.spreadLabel}>{t.spreadLevel}</Text>
-                  <Text style={[styles.spreadLevel, { color: getSpreadColor(result.data.spread_speed.level) }]}>
+                  <Text selectable style={[styles.spreadLevel, { color: getSpreadColor(result.data.spread_speed.level) }]}> 
                     {localizeSpreadLevelValue(result.data.spread_speed.level, t)}
                   </Text>
                 </View>
                 <View style={styles.spreadMain}>
                   <Text style={styles.spreadLabel}>{t.speed}</Text>
-                  <Text style={styles.spreadValue}>
+                  <Text selectable style={styles.spreadValue}>
                     {result.data.spread_speed.speed_m_per_min.toFixed(1)} m/min
                   </Text>
                   {result.data.spread_speed.speed_km_per_h && (
-                    <Text style={styles.spreadSubvalue}>
+                    <Text selectable style={styles.spreadSubvalue}>
                       {result.data.spread_speed.speed_km_per_h.toFixed(2)} km/h
                     </Text>
                   )}
-                </View>
-              </View>
-
-              {/* Factors */}
-              <View style={styles.factors}>
-                <Text style={styles.subsectionTitle}>{t.factors}</Text>
-                <View style={styles.factorsGrid}>
-                  {Object.entries(result.data.spread_speed.factors).map(([key, value]) => (
-                    <View key={key} style={styles.factorItem}>
-                      <Text style={styles.factorLabel}>{key}</Text>
-                      <Text style={styles.factorValue}>{value.toFixed(2)}</Text>
-                    </View>
-                  ))}
                 </View>
               </View>
             </Card>
@@ -173,7 +174,7 @@ export default function SensorsScreen() {
 
         {result.isLoading && <LoadingState message={t.loading} />}
       </ScrollView>
-    </SafeAreaView>
+    </View>
     </TabSwipeGesture>
   );
 }
@@ -189,7 +190,6 @@ function createStyles(colors: AppColors) {
     },
     content: {
       padding: spacing.md,
-      paddingTop: spacing.lg,
       paddingBottom: spacing.xl,
       gap: spacing.lg,
     },
@@ -211,9 +211,28 @@ function createStyles(colors: AppColors) {
       gap: spacing.sm,
       marginBottom: spacing.md,
     },
-    inputsContainer: {
-      gap: spacing.md,
+    fixedInputsContainer: {
+      gap: spacing.sm,
       marginBottom: spacing.md,
+    },
+    fixedInputRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+    },
+    fixedInputLabel: {
+      fontSize: typography.body,
+      color: colors.muted,
+      fontWeight: '600',
+    },
+    fixedInputValue: {
+      fontSize: typography.body,
+      color: colors.text,
+      fontWeight: '700',
     },
     resultsGrid: {
       flexDirection: 'row',
@@ -237,6 +256,7 @@ function createStyles(colors: AppColors) {
       fontSize: 24,
       fontWeight: '700',
       color: colors.text,
+      fontVariant: ['tabular-nums'],
     },
     probabilities: {
       marginTop: spacing.md,
@@ -264,6 +284,7 @@ function createStyles(colors: AppColors) {
       fontSize: typography.label,
       fontWeight: '700',
       color: colors.primary,
+      fontVariant: ['tabular-nums'],
     },
     gates: {
       marginTop: spacing.md,
@@ -303,38 +324,13 @@ function createStyles(colors: AppColors) {
       fontSize: 24,
       fontWeight: '700',
       color: colors.text,
+      fontVariant: ['tabular-nums'],
     },
     spreadSubvalue: {
       fontSize: typography.label,
       color: colors.muted,
       fontWeight: '500',
-    },
-    factors: {
-      marginTop: spacing.md,
-    },
-    factorsGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.sm,
-    },
-    factorItem: {
-      backgroundColor: colors.surface,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: 8,
-      flexDirection: 'row',
-      gap: spacing.sm,
-      alignItems: 'center',
-    },
-    factorLabel: {
-      fontSize: typography.caption,
-      fontWeight: '600',
-      color: colors.muted,
-    },
-    factorValue: {
-      fontSize: typography.label,
-      fontWeight: '700',
-      color: colors.text,
+      fontVariant: ['tabular-nums'],
     },
   });
 }

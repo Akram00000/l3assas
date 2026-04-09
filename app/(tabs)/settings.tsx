@@ -1,13 +1,13 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getDefaultApiBaseUrl } from '@/src/api/client';
 import { Button } from '@/src/components/Button';
 import { Card } from '@/src/components/Card';
 import { Input } from '@/src/components/Input';
 import { LoadingState } from '@/src/components/LoadingState';
+import { SymbolIcon } from '@/src/components/symbol-icon';
 import { TabSwipeGesture } from '@/src/components/TabSwipeGesture';
 import { useSettings } from '@/src/hooks/appHooks';
 import { useLanguage } from '@/src/i18n';
@@ -19,6 +19,7 @@ import { typography } from '@/src/theme/typography';
 export default function SettingsScreen() {
   const { t, language, setLanguage } = useLanguage();
   const { colors, isDark, toggleMode } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
   const settings = useSettings();
   const initial = settings.load.data;
@@ -47,12 +48,16 @@ export default function SettingsScreen() {
 
   return (
     <TabSwipeGesture currentPath="/(tabs)/settings">
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + spacing.sm, spacing.xl) }]}
+        contentInsetAdjustmentBehavior="never"
+        showsVerticalScrollIndicator={false}>
         {/* Language Settings */}
         <Card>
           <View style={styles.cardHeader}>
-            <Ionicons name="language" size={24} color={colors.primary} />
+            <SymbolIcon sf="globe" fallbackName="language" size={24} color={colors.primary} />
             <Text style={styles.sectionTitle}>{t.language}</Text>
           </View>
           <View style={styles.languageButtons}>
@@ -76,13 +81,13 @@ export default function SettingsScreen() {
         {/* App Settings */}
         <Card>
           <View style={styles.cardHeader}>
-            <Ionicons name="settings" size={24} color={colors.primary} />
+            <SymbolIcon sf="gearshape.fill" fallbackName="settings" size={24} color={colors.primary} />
             <Text style={styles.sectionTitle}>{t.settings}</Text>
           </View>
 
           <View style={styles.settingRow}>
             <View style={styles.settingLabel}>
-              <Ionicons name="moon" size={20} color={colors.primary} />
+              <SymbolIcon sf="moon.fill" fallbackName="moon" size={20} color={colors.primary} />
               <Text style={styles.settingText}>{t.darkMode}</Text>
             </View>
             <Switch
@@ -97,7 +102,7 @@ export default function SettingsScreen() {
 
           <View style={styles.settingRow}>
             <View style={styles.settingLabel}>
-              <Ionicons name="volume-high" size={20} color={colors.primary} />
+              <SymbolIcon sf="speaker.wave.3.fill" fallbackName="volume-high" size={20} color={colors.primary} />
               <Text style={styles.settingText}>{t.soundAlerts}</Text>
             </View>
             <Switch
@@ -116,7 +121,7 @@ export default function SettingsScreen() {
               icon="link"
               keyboardType="url"
             />
-            <Text style={styles.note}>{t.apiUrlNote}</Text>
+            <Text selectable style={styles.note}>{t.apiUrlNote}</Text>
           </View>
 
           <Button
@@ -128,7 +133,7 @@ export default function SettingsScreen() {
           />
         </Card>
       </ScrollView>
-    </SafeAreaView>
+    </View>
     </TabSwipeGesture>
   );
 }
@@ -144,7 +149,6 @@ function createStyles(colors: AppColors) {
     },
     content: {
       padding: spacing.md,
-      paddingTop: spacing.lg,
       paddingBottom: spacing.xl,
       gap: spacing.lg,
     },

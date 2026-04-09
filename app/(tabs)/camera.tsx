@@ -1,8 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
 import { getApiBaseUrl } from '@/src/api/client';
@@ -11,6 +10,7 @@ import { Button } from '@/src/components/Button';
 import { Card } from '@/src/components/Card';
 import { DetectionCard } from '@/src/components/DetectionCard';
 import { LoadingState } from '@/src/components/LoadingState';
+import { SymbolIcon } from '@/src/components/symbol-icon';
 import { TabSwipeGesture } from '@/src/components/TabSwipeGesture';
 import { useStatusPoll, useVisionPoll } from '@/src/hooks/appHooks';
 import { useLanguage } from '@/src/i18n';
@@ -23,6 +23,7 @@ import { localizeVisionAlertValue } from '@/src/utils/valueLabels';
 export default function CameraScreen() {
   const { t } = useLanguage();
   const { colors } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
   const queryClient = useQueryClient();
   const status = useStatusPoll(true, 1500);
@@ -66,12 +67,16 @@ export default function CameraScreen() {
 
   return (
     <TabSwipeGesture currentPath="/(tabs)/camera">
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + spacing.sm, spacing.xl) }]}
+        contentInsetAdjustmentBehavior="never"
+        showsVerticalScrollIndicator={false}>
         {/* Camera Controls */}
         <Card>
           <View style={styles.cardHeader}>
-            <Ionicons name="camera" size={24} color={colors.primary} />
+            <SymbolIcon sf="camera.fill" fallbackName="camera" size={24} color={colors.primary} />
             <Text style={styles.sectionTitle}>{t.camera}</Text>
           </View>
           <View style={styles.controlsRow}>
@@ -100,14 +105,12 @@ export default function CameraScreen() {
         <Card style={styles.streamCard}>
           {status.data?.camera_active ? (
             <WebView
-              source={{
-                html: `<html><body style="margin:0;background:black;"><img src="${getApiBaseUrl()}/camera/stream" style="width:100%;height:100%;object-fit:contain;" /></body></html>`,
-              }}
+              source={{ uri: `${getApiBaseUrl()}/camera/stream` }}
               style={styles.stream}
             />
           ) : (
             <View style={styles.streamPlaceholder}>
-              <Ionicons name="camera-off" size={64} color={colors.muted} />
+              <SymbolIcon sf="camera.slash.fill" fallbackName="camera-off" size={64} color={colors.muted} />
               <Text style={styles.placeholderText}>{t.cameraInactive}</Text>
             </View>
           )}
@@ -117,7 +120,7 @@ export default function CameraScreen() {
         {status.data?.camera_active && (
           <Card>
             <View style={styles.cardHeader}>
-              <Ionicons name="analytics" size={24} color={colors.primary} />
+              <SymbolIcon sf="chart.bar.xaxis" fallbackName="stats-chart" size={24} color={colors.primary} />
               <Text style={styles.sectionTitle}>{t.detections}</Text>
             </View>
             <View style={styles.detectionsGrid}>
@@ -130,7 +133,7 @@ export default function CameraScreen() {
             {detections.data && (
               <View style={styles.visionAlert}>
                 <Text style={styles.visionAlertLabel}>{t.visionAlert}:</Text>
-                <Text style={[styles.visionAlertValue, { color: colors.primary }]}>
+                <Text selectable style={[styles.visionAlertValue, { color: colors.primary }]}> 
                   {localizeVisionAlertValue(detections.data.summary.vision_alert, t)}
                 </Text>
               </View>
@@ -138,7 +141,7 @@ export default function CameraScreen() {
           </Card>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
     </TabSwipeGesture>
   );
 }
@@ -154,7 +157,6 @@ function createStyles(colors: AppColors) {
     },
     content: {
       padding: spacing.md,
-      paddingTop: spacing.lg,
       paddingBottom: spacing.xl,
       gap: spacing.lg,
     },
