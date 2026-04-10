@@ -3,16 +3,21 @@ import type {
   CameraConfigRequest,
   CameraDetectionsResponse,
   CameraStartRequest,
+  MobileNotifyRegisterRequest,
+  MobileNotifyRegisterResponse,
+  MobileNotifyStatusResponse,
   NtfyConfigRequest,
   NtfyConfigResponse,
   PredictRequest,
   PredictResponse,
+  SensorStateResponse,
   SimpleOkResponse,
   StatusResponse,
 } from './types';
 
 export const api = {
   status: () => jsonApi<StatusResponse>('/status'),
+  sensorState: () => jsonApi<SensorStateResponse>('/sensors/state'),
   predict: (payload: PredictRequest) =>
     jsonApi<PredictResponse>('/predict', { method: 'POST', body: JSON.stringify(payload) }),
   cameraStart: (payload: CameraStartRequest) =>
@@ -25,4 +30,16 @@ export const api = {
   ntfyConfig: (payload: NtfyConfigRequest) =>
     jsonApi<SimpleOkResponse>('/ntfy/config', { method: 'POST', body: JSON.stringify(payload) }),
   ntfyTest: () => jsonApi<SimpleOkResponse>('/ntfy/test', { method: 'POST', body: '{}' }),
+  mobileNotifyRegister: (payload: MobileNotifyRegisterRequest) =>
+    jsonApi<MobileNotifyRegisterResponse>('/mobile/notify/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  mobileNotifyUnregister: (payload: { token: string }) =>
+    jsonApi<SimpleOkResponse>('/mobile/notify/unregister', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  mobileNotifyStatus: () => jsonApi<MobileNotifyStatusResponse>('/mobile/notify/status'),
+  mobileNotifyTest: () => jsonApi<SimpleOkResponse>('/mobile/notify/test', { method: 'POST', body: '{}' }),
 };

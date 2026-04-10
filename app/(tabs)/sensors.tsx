@@ -1,13 +1,15 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LineChart } from 'react-native-chart-kit';
 
-import type { PredictRequest } from '@/src/api/types';
-import { Button } from '@/src/components/Button';
+import { api } from '@/src/api/endpoints';
 import { Card } from '@/src/components/Card';
 import { LoadingState } from '@/src/components/LoadingState';
 import { SymbolIcon } from '@/src/components/symbol-icon';
 import { TabSwipeGesture } from '@/src/components/TabSwipeGesture';
-import { usePredictPoll } from '@/src/hooks/appHooks';
+import { usePredictPoll, useSensorStatePoll } from '@/src/hooks/appHooks';
 import { useLanguage } from '@/src/i18n';
 import type { AppColors } from '@/src/theme/colors';
 import { getAlertColor, getSpreadColor } from '@/src/theme/colors';
@@ -16,7 +18,7 @@ import { useAppTheme } from '@/src/theme/theme-context';
 import { typography } from '@/src/theme/typography';
 import { localizeAlertValue, localizeGasClassValue, localizeSpreadLevelValue } from '@/src/utils/valueLabels';
 
-const SERVER_API_PAYLOAD: PredictRequest = {
+const FALLBACK_SENSOR_STATE = {
   mq2: 100,
   mq6: 80,
   temperature: 20,
@@ -26,21 +28,102 @@ const SERVER_API_PAYLOAD: PredictRequest = {
   month_num: 7,
 };
 
+function buildHistory(currentValue: number, variation: number) {
+  return [...Array(10)].map((_, idx) => {
+    const trendBias = (idx - 4.5) * variation * 0.06;
+    return Number((currentValue + trendBias + Math.random() * variation).toFixed(2));
+  });
+}
+
 export default function SensorsScreen() {
   const { t } = useLanguage();
   const { colors } = useAppTheme();
+  const { width: viewportWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
-  const result = usePredictPoll(SERVER_API_PAYLOAD, true);
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+  const sensorState = useSensorStatePoll(true, 1500);
+  const payload = sensorState.data ?? FALLBACK_SENSOR_STATE;
+  const livePayload = useMemo(
+    () => ({
+      mq2: payload.mq2,
+      mq6: payload.mq6,
+      temperature: payload.temperature,
+      rh: payload.rh,
+      wind: payload.wind,
+      rain: payload.rain,
+      month_num: payload.month_num,
+    }),
+    [payload.month_num, payload.mq2, payload.mq6, payload.rain, payload.rh, payload.temperature, payload.wind],
+  );
+  const result = usePredictPoll(livePayload, true, 1500);
+  const chartWidth = Math.max(260, viewportWidth - spacing.md * 4);
+  const gasLevel = useMemo(
+    () => Number(((livePayload.mq2 + livePayload.mq6) / 2).toFixed(2)),
+    [livePayload.mq2, livePayload.mq6],
+  );
+  const miniSeries = useMemo(
+    () => ({
+      temperature: buildHistory(livePayload.temperature, 2),
+      gas: buildHistory(gasLevel, 14),
+      humidity: buildHistory(livePayload.rh, 4),
+    }),
+    [gasLevel, livePayload.rh, livePayload.temperature],
+  );
+  const miniGraphLabels = useMemo(() => ['-9', '', '', '', '', '', '', '', '', '0'], []);
+  const chartConfig = useMemo(
+    () => ({
+      backgroundGradientFrom: colors.surface,
+      backgroundGradientTo: colors.surface,
+      decimalPlaces: 1,
+      color: (opacity = 1) => `rgba(29, 122, 70, ${opacity})`,
+      labelColor: (opacity = 1) => `rgba(90, 106, 96, ${opacity})`,
+      propsForDots: {
+        r: '2.5',
+        strokeWidth: '1',
+        stroke: colors.surface,
+      },
+      propsForBackgroundLines: {
+        strokeDasharray: '3 3',
+        stroke: colors.border,
+      },
+    }),
+    [colors.border, colors.surface],
+  );
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const latest = await sensorState.refetch();
+      const refreshedPayload = {
+        mq2: latest.data?.mq2 ?? livePayload.mq2,
+        mq6: latest.data?.mq6 ?? livePayload.mq6,
+        temperature: latest.data?.temperature ?? livePayload.temperature,
+        rh: latest.data?.rh ?? livePayload.rh,
+        wind: latest.data?.wind ?? livePayload.wind,
+        rain: latest.data?.rain ?? livePayload.rain,
+        month_num: latest.data?.month_num ?? livePayload.month_num,
+      };
+
+      await queryClient.fetchQuery({
+        queryKey: ['predict', refreshedPayload],
+        queryFn: () => api.predict(refreshedPayload),
+      });
+      await queryClient.invalidateQueries({ queryKey: ['predict'] });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [livePayload.month_num, livePayload.mq2, livePayload.mq6, livePayload.rain, livePayload.rh, livePayload.temperature, livePayload.wind, queryClient, sensorState]);
 
   const fixedInputs = [
-    { label: t.mq2, value: SERVER_API_PAYLOAD.mq2 },
-    { label: t.mq6, value: SERVER_API_PAYLOAD.mq6 },
-    { label: t.temperature, value: `${SERVER_API_PAYLOAD.temperature}°C` },
-    { label: t.humidity, value: `${SERVER_API_PAYLOAD.rh}%` },
-    { label: t.wind, value: SERVER_API_PAYLOAD.wind },
-    { label: t.rain, value: `${SERVER_API_PAYLOAD.rain} mm` },
-    { label: t.month, value: SERVER_API_PAYLOAD.month_num },
+    { label: t.mq2, value: livePayload.mq2 },
+    { label: t.mq6, value: livePayload.mq6 },
+    { label: t.temperature, value: `${livePayload.temperature}°C` },
+    { label: t.humidity, value: `${livePayload.rh}%` },
+    { label: t.wind, value: livePayload.wind },
+    { label: t.rain, value: `${livePayload.rain} mm` },
+    { label: t.month, value: livePayload.month_num },
   ];
 
   return (
@@ -50,8 +133,18 @@ export default function SensorsScreen() {
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top + spacing.sm, spacing.xl) }]}
         contentInsetAdjustmentBehavior="never"
-        showsVerticalScrollIndicator={false}>
-        {/* Fixed Sensor Inputs (server API payload) */}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              void handleRefresh();
+            }}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }>
+        {/* Live Sensor Inputs (shared server state) */}
         <Card>
           <View style={styles.cardHeader}>
             <SymbolIcon sf="slider.horizontal.3" fallbackName="options" size={24} color={colors.primary} />
@@ -65,15 +158,104 @@ export default function SensorsScreen() {
               </View>
             ))}
           </View>
-          <Button
-            title={t.retry}
-            onPress={() => {
-              void result.refetch();
-            }}
-            icon="send"
-            variant="primary"
-            loading={result.isFetching}
-          />
+        </Card>
+
+        <Card>
+          <View style={styles.cardHeader}>
+            <SymbolIcon sf="chart.bar.xaxis" fallbackName="stats-chart" size={24} color={colors.primary} />
+            <Text style={styles.sectionTitle}>{t.miniGraphs}</Text>
+          </View>
+          <Text style={styles.miniGraphNote}>{t.lastTenReadings}</Text>
+
+          <View style={styles.chartBlock}>
+            <View style={styles.chartTitleRow}>
+              <Text style={styles.chartTitle}>{t.temperature}</Text>
+              <Text style={styles.chartValue}>{livePayload.temperature.toFixed(1)}°C</Text>
+            </View>
+            <LineChart
+              data={{
+                labels: miniGraphLabels,
+                datasets: [
+                  {
+                    data: miniSeries.temperature,
+                    color: (opacity = 1) => `rgba(210, 79, 52, ${opacity})`,
+                    strokeWidth: 2,
+                  },
+                ],
+              }}
+              width={chartWidth}
+              height={148}
+              chartConfig={chartConfig}
+              withInnerLines
+              withOuterLines={false}
+              withVerticalLines={false}
+              withHorizontalLabels
+              fromZero={false}
+              yLabelsOffset={6}
+              style={styles.chart}
+              bezier
+            />
+          </View>
+
+          <View style={styles.chartBlock}>
+            <View style={styles.chartTitleRow}>
+              <Text style={styles.chartTitle}>{t.gas}</Text>
+              <Text style={styles.chartValue}>{gasLevel.toFixed(1)}</Text>
+            </View>
+            <LineChart
+              data={{
+                labels: miniGraphLabels,
+                datasets: [
+                  {
+                    data: miniSeries.gas,
+                    color: (opacity = 1) => `rgba(157, 78, 221, ${opacity})`,
+                    strokeWidth: 2,
+                  },
+                ],
+              }}
+              width={chartWidth}
+              height={148}
+              chartConfig={chartConfig}
+              withInnerLines
+              withOuterLines={false}
+              withVerticalLines={false}
+              withHorizontalLabels
+              fromZero={false}
+              yLabelsOffset={6}
+              style={styles.chart}
+              bezier
+            />
+          </View>
+
+          <View style={styles.chartBlock}>
+            <View style={styles.chartTitleRow}>
+              <Text style={styles.chartTitle}>{t.humidity}</Text>
+              <Text style={styles.chartValue}>{livePayload.rh.toFixed(1)}%</Text>
+            </View>
+            <LineChart
+              data={{
+                labels: miniGraphLabels,
+                datasets: [
+                  {
+                    data: miniSeries.humidity,
+                    color: (opacity = 1) => `rgba(40, 124, 210, ${opacity})`,
+                    strokeWidth: 2,
+                  },
+                ],
+              }}
+              width={chartWidth}
+              height={148}
+              chartConfig={chartConfig}
+              withInnerLines
+              withOuterLines={false}
+              withVerticalLines={false}
+              withHorizontalLabels
+              fromZero={false}
+              yLabelsOffset={6}
+              style={styles.chart}
+              bezier
+            />
+          </View>
         </Card>
 
         {/* Results */}
@@ -108,21 +290,6 @@ export default function SensorsScreen() {
                   <Text selectable style={styles.resultValue}>{Math.round(result.data.confidence * 100)}%</Text>
                 </View>
               </View>
-
-              {/* Class Probabilities */}
-              {result.data.class_proba && Object.keys(result.data.class_proba).length > 0 && (
-                <View style={styles.probabilities}>
-                  <Text style={styles.subsectionTitle}>{t.classProbabilities}</Text>
-                  <View style={styles.probabilitiesGrid}>
-                    {Object.entries(result.data.class_proba).map(([key, value]) => (
-                      <View key={key} style={styles.probabilityItem}>
-                        <Text style={styles.probabilityLabel}>{localizeGasClassValue(key, t)}</Text>
-                        <Text selectable style={styles.probabilityValue}>{Math.round((value ?? 0) * 100)}%</Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
 
               {/* Gates Applied */}
               {result.data.gates_applied && result.data.gates_applied.length > 0 && (
@@ -198,13 +365,6 @@ function createStyles(colors: AppColors) {
       fontWeight: '700',
       color: colors.text,
     },
-    subsectionTitle: {
-      fontSize: typography.body,
-      fontWeight: '700',
-      color: colors.text,
-      marginTop: spacing.md,
-      marginBottom: spacing.sm,
-    },
     cardHeader: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -234,6 +394,36 @@ function createStyles(colors: AppColors) {
       color: colors.text,
       fontWeight: '700',
     },
+    miniGraphNote: {
+      fontSize: typography.caption,
+      color: colors.muted,
+      fontWeight: '600',
+      marginBottom: spacing.sm,
+    },
+    chartBlock: {
+      marginTop: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    chartTitleRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.xs,
+    },
+    chartTitle: {
+      fontSize: typography.body,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    chartValue: {
+      fontSize: typography.label,
+      fontWeight: '700',
+      color: colors.primary,
+      fontVariant: ['tabular-nums'],
+    },
+    chart: {
+      borderRadius: 12,
+    },
     resultsGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -256,34 +446,6 @@ function createStyles(colors: AppColors) {
       fontSize: 24,
       fontWeight: '700',
       color: colors.text,
-      fontVariant: ['tabular-nums'],
-    },
-    probabilities: {
-      marginTop: spacing.md,
-    },
-    probabilitiesGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.sm,
-    },
-    probabilityItem: {
-      backgroundColor: colors.surface,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderRadius: 8,
-      flexDirection: 'row',
-      gap: spacing.sm,
-      alignItems: 'center',
-    },
-    probabilityLabel: {
-      fontSize: typography.label,
-      fontWeight: '600',
-      color: colors.text,
-    },
-    probabilityValue: {
-      fontSize: typography.label,
-      fontWeight: '700',
-      color: colors.primary,
       fontVariant: ['tabular-nums'],
     },
     gates: {

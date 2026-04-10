@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { LanguageProvider } from '@/src/i18n';
+import { useMobilePushRegistration } from '@/src/hooks/useMobilePushNotifications';
 import { AppThemeProvider, useAppTheme } from '@/src/theme/theme-context';
 
 export const unstable_settings = {
@@ -53,6 +54,7 @@ function StartupOverlay() {
 function RootNavigator() {
   const { isDark, colors } = useAppTheme();
   const [showStartup, setShowStartup] = useState(true);
+  useMobilePushRegistration();
 
   useEffect(() => {
     const timer = setTimeout(() => {

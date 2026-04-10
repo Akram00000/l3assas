@@ -11,11 +11,20 @@ export function useStatusPoll(enabled = true, intervalMs = 30000) {
   return useQuery({ queryKey: ['status'], queryFn: api.status, refetchInterval: enabled ? intervalMs : false });
 }
 
-export function usePredictPoll(payload: PredictRequest, enabled: boolean) {
+export function useSensorStatePoll(enabled = true, intervalMs = 2000) {
+  return useQuery({
+    queryKey: ['sensor-state'],
+    queryFn: api.sensorState,
+    refetchInterval: enabled ? intervalMs : false,
+    enabled,
+  });
+}
+
+export function usePredictPoll(payload: PredictRequest, enabled: boolean, intervalMs = 5000) {
   return useQuery({
     queryKey: ['predict', payload],
     queryFn: () => api.predict(payload),
-    refetchInterval: enabled ? 5000 : false,
+    refetchInterval: enabled ? intervalMs : false,
     enabled,
   });
 }
@@ -87,6 +96,11 @@ export function useSettings() {
         }
       }
 
+      parsed = {
+        ...parsed,
+        soundEnabled: true,
+      };
+
       setApiBaseUrl(parsed.apiBaseUrl);
       return parsed;
     },
@@ -94,13 +108,18 @@ export function useSettings() {
 
   const save = useMutation({
     mutationFn: async (settings: AppSettings) => {
+      const normalized: AppSettings = {
+        soundEnabled: true,
+        apiBaseUrl: settings.apiBaseUrl || getDefaultApiBaseUrl(),
+      };
+
       try {
-        await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+        await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(normalized));
       } catch {
         // Persisting settings is best-effort; app should continue with in-memory state.
       }
-      setApiBaseUrl(settings.apiBaseUrl);
-      return settings;
+      setApiBaseUrl(normalized.apiBaseUrl);
+      return normalized;
     },
   });
 

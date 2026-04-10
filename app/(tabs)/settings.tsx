@@ -1,11 +1,8 @@
-import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getDefaultApiBaseUrl } from '@/src/api/client';
 import { Button } from '@/src/components/Button';
 import { Card } from '@/src/components/Card';
-import { Input } from '@/src/components/Input';
 import { LoadingState } from '@/src/components/LoadingState';
 import { SymbolIcon } from '@/src/components/symbol-icon';
 import { TabSwipeGesture } from '@/src/components/TabSwipeGesture';
@@ -22,19 +19,11 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
   const settings = useSettings();
-  const initial = settings.load.data;
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [apiBaseUrl, setApiBaseUrl] = useState(getDefaultApiBaseUrl());
-
-  useEffect(() => {
-    if (!initial) return;
-    setSoundEnabled(initial.soundEnabled);
-    setApiBaseUrl(initial.apiBaseUrl);
-  }, [initial]);
 
   const handleSave = () => {
+    const apiBaseUrl = settings.load.data?.apiBaseUrl ?? '';
     settings.save.mutate(
-      { soundEnabled, apiBaseUrl },
+      { soundEnabled: true, apiBaseUrl },
       {
         onSuccess: () => Alert.alert(t.success, t.configSaved),
         onError: () => Alert.alert(t.error, t.configSaveFailed),
@@ -105,24 +94,10 @@ export default function SettingsScreen() {
               <SymbolIcon sf="speaker.wave.3.fill" fallbackName="volume-high" size={20} color={colors.primary} />
               <Text style={styles.settingText}>{t.soundAlerts}</Text>
             </View>
-            <Switch
-              value={soundEnabled}
-              onValueChange={setSoundEnabled}
-              trackColor={{ false: colors.border, true: colors.primary }}
-            />
+            <Switch value trackColor={{ false: colors.border, true: colors.primary }} disabled />
           </View>
 
-          <View style={styles.apiUrlContainer}>
-            <Input
-              label={t.apiUrl}
-              value={apiBaseUrl}
-              onChangeText={setApiBaseUrl}
-              placeholder="http://192.168.1.50:5000"
-              icon="link"
-              keyboardType="url"
-            />
-            <Text selectable style={styles.note}>{t.apiUrlNote}</Text>
-          </View>
+          <Text style={styles.note}>{t.sonicAlarmAlwaysOn}</Text>
 
           <Button
             title={t.save}
@@ -207,12 +182,9 @@ function createStyles(colors: AppColors) {
       fontWeight: '600',
       color: colors.text,
     },
-    apiUrlContainer: {
+    note: {
       marginTop: spacing.md,
       marginBottom: spacing.md,
-      gap: spacing.sm,
-    },
-    note: {
       fontSize: typography.caption,
       color: colors.muted,
       fontStyle: 'italic',

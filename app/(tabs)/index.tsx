@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,31 +11,82 @@ import { OfflineBanner } from '@/src/components/OfflineBanner';
 import { StatusBadge } from '@/src/components/StatusBadge';
 import { SymbolIcon } from '@/src/components/symbol-icon';
 import { TabSwipeGesture } from '@/src/components/TabSwipeGesture';
-import { useGlobalAlert, useStatusPoll, useVisionPoll } from '@/src/hooks/appHooks';
+import { useGlobalAlert, usePredictPoll, useSensorStatePoll, useStatusPoll, useVisionPoll } from '@/src/hooks/appHooks';
 import { useLanguage } from '@/src/i18n';
+import type { PredictRequest } from '@/src/api/types';
 import type { AppColors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
 import { useAppTheme } from '@/src/theme/theme-context';
 import { typography } from '@/src/theme/typography';
-import { localizeVisionAlertValue } from '@/src/utils/valueLabels';
+import { shouldTreatAsSafeFromFalseWarning } from '@/src/utils/falseWarningSession';
+import { localizeSpreadLevelValue, localizeVisionAlertValue } from '@/src/utils/valueLabels';
+
+const FALLBACK_SENSOR_PAYLOAD: PredictRequest = {
+  mq2: 100,
+  mq6: 80,
+  temperature: 20,
+  rh: 60,
+  wind: 5,
+  rain: 0,
+  month_num: 7,
+};
 
 export default function HomeScreen() {
   const { t } = useLanguage();
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
-  const status = useStatusPoll();
+  const status = useStatusPoll(true, 1500);
   const vision = useVisionPoll(Boolean(status.data?.camera_active));
+  const sensorState = useSensorStatePoll(true, 1500);
+  const incidentPayload = useMemo(
+    () => ({
+      mq2: sensorState.data?.mq2 ?? FALLBACK_SENSOR_PAYLOAD.mq2,
+      mq6: sensorState.data?.mq6 ?? FALLBACK_SENSOR_PAYLOAD.mq6,
+      temperature: sensorState.data?.temperature ?? FALLBACK_SENSOR_PAYLOAD.temperature,
+      rh: sensorState.data?.rh ?? FALLBACK_SENSOR_PAYLOAD.rh,
+      wind: sensorState.data?.wind ?? FALLBACK_SENSOR_PAYLOAD.wind,
+      rain: sensorState.data?.rain ?? FALLBACK_SENSOR_PAYLOAD.rain,
+      month_num: sensorState.data?.month_num ?? FALLBACK_SENSOR_PAYLOAD.month_num,
+    }),
+    [
+      sensorState.data?.month_num,
+      sensorState.data?.mq2,
+      sensorState.data?.mq6,
+      sensorState.data?.rain,
+      sensorState.data?.rh,
+      sensorState.data?.temperature,
+      sensorState.data?.wind,
+    ],
+  );
+  const incidentPredict = usePredictPoll(incidentPayload, true, 1500);
   
-  const sensorAlertRaw = 'SAFE';
-  const visionAlertRaw = vision.data?.summary.vision_alert ?? 'CLEAR';
-  const globalAlert = useGlobalAlert(sensorAlertRaw, visionAlertRaw);
+  const sensorAlertRaw = status.data?.sensor_alert ?? 'SAFE';
+  const visionAlertRaw = status.data?.vision_alert ?? (status.data?.camera_active ? (vision.data?.summary.vision_alert ?? 'CLEAR') : 'CLEAR');
+  const computedGlobalAlert = useGlobalAlert(sensorAlertRaw, visionAlertRaw);
+  const globalAlertRaw = status.data?.global_alert ?? computedGlobalAlert;
+  const suppressedBySessionSafe = shouldTreatAsSafeFromFalseWarning(sensorState.data);
+  const globalAlert = suppressedBySessionSafe ? 'SAFE' : globalAlertRaw;
+  const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowSec(Math.floor(Date.now() / 1000));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   if (status.isLoading) {
     return <LoadingState message={t.loading} />;
   }
 
   const isOffline = !status.data?.online;
+  const alertUpdatedAt = Number(status.data?.alert_updated_at ?? 0);
+  const secondsAgo = alertUpdatedAt > 0 ? Math.max(0, Math.floor(nowSec - alertUpdatedAt)) : 0;
+  const confidencePct = incidentPredict.data
+    ? Math.round(Math.max(0, Math.min(1, incidentPredict.data.confidence)) * 100)
+    : null;
+  const incidentAccent = globalAlert === 'FIRE' ? colors.fire : colors.warningAlert;
 
   return (
     <TabSwipeGesture currentPath="/(tabs)">
@@ -51,17 +103,41 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Image
-              source={require('../../assets/images/logo.png')}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-          </View>
+          <Image
+            source={require('../../assets/images/logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
         </View>
 
         {/* Global Alert */}
         <AlertBanner alert={globalAlert} message={t.globalAlert} />
+
+        {/* Live Incident Card */}
+        {globalAlert !== 'SAFE' && (
+          <Card
+            style={[
+              styles.incidentCard,
+              {
+                borderColor: incidentAccent,
+                backgroundColor: `${incidentAccent}1A`,
+              },
+            ]}>
+            <Text style={[styles.incidentTitle, { color: incidentAccent }]}>
+              {globalAlert === 'FIRE' ? t.fireDetected : t.warningDetected}
+            </Text>
+            <Text style={styles.incidentLine}>{t.incidentLocation}</Text>
+            <Text style={styles.incidentLine}>
+              ⏱ {secondsAgo} {t.secondsWord}
+            </Text>
+            <Text style={styles.incidentLine}>
+              {t.spreadLabel}: {localizeSpreadLevelValue(incidentPredict.data?.spread_speed?.level ?? '--', t)}
+            </Text>
+            <Text style={styles.incidentLine}>
+              {t.confidenceLabel}: {confidencePct === null ? '--' : `${confidencePct}%`}
+            </Text>
+          </Card>
+        )}
 
         {/* System Status */}
         <Card>
@@ -146,22 +222,11 @@ function createStyles(colors: AppColors) {
     header: {
       justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: spacing.sm,
-    },
-    logoContainer: {
-      width: 88,
-      height: 88,
-      borderRadius: 24,
-      backgroundColor: `${colors.primary}12`,
-      borderWidth: 1,
-      borderColor: colors.border,
-      alignItems: 'center',
-      justifyContent: 'center',
-      boxShadow: colors.cardShadow,
+      marginBottom: spacing.md,
     },
     logoImage: {
-      width: 72,
-      height: 72,
+      width: 156,
+      height: 156,
     },
     sectionTitle: {
       fontSize: typography.heading,
@@ -205,6 +270,20 @@ function createStyles(colors: AppColors) {
     actionsGrid: {
       gap: spacing.md,
       marginTop: spacing.md,
+    },
+    incidentCard: {
+      borderWidth: 2,
+      gap: spacing.sm,
+    },
+    incidentTitle: {
+      fontSize: 30,
+      fontWeight: '900',
+      letterSpacing: 0.4,
+    },
+    incidentLine: {
+      fontSize: typography.body,
+      fontWeight: '700',
+      color: colors.text,
     },
   });
 }

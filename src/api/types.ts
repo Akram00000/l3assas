@@ -13,6 +13,11 @@ export interface PredictRequest {
   month_num: number;
 }
 
+export interface SensorStateResponse extends PredictRequest {
+  updated_at: number;
+  source: string;
+}
+
 export interface CameraStartRequest {
   cam_id: number;
 }
@@ -36,6 +41,11 @@ export interface StatusResponse {
   vision_ok: boolean;
   camera_active: boolean;
   model_mode: ModelMode;
+  mobile_push_devices?: number;
+  sensor_alert?: AlertLevel;
+  vision_alert?: VisionAlert;
+  global_alert?: AlertLevel;
+  alert_updated_at?: number;
 }
 
 export interface SpreadSpeed {
@@ -98,4 +108,26 @@ export interface NtfyConfigResponse {
   topic: string;
   server: string;
   cooldown: number;
+}
+
+export interface MobileNotifyRegisterRequest {
+  token: string;
+  platform?: string;
+}
+
+export interface MobileNotifyRegisterResponse {
+  ok: boolean;
+  provider: 'expo';
+  count: number;
+  error?: string;
+}
+
+export interface MobileNotifyStatusResponse {
+  enabled: boolean;
+  count: number;
+  devices: {
+    token: string;
+    platform: string;
+    updated_at: number;
+  }[];
 }

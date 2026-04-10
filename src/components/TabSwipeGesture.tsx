@@ -4,9 +4,9 @@ import { StyleSheet, View } from 'react-native';
 import { Directions, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 
-type TabPath = '/(tabs)' | '/(tabs)/sensors' | '/(tabs)/camera' | '/(tabs)/settings';
+type TabPath = '/(tabs)' | '/(tabs)/sensors' | '/(tabs)/camera' | '/(tabs)/map' | '/(tabs)/settings';
 
-const TAB_ORDER: TabPath[] = ['/(tabs)', '/(tabs)/sensors', '/(tabs)/camera', '/(tabs)/settings'];
+const TAB_ORDER: TabPath[] = ['/(tabs)', '/(tabs)/sensors', '/(tabs)/camera', '/(tabs)/map', '/(tabs)/settings'];
 
 type TabSwipeGestureProps = PropsWithChildren<{
   currentPath: TabPath;

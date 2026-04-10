@@ -4,12 +4,16 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { EmergencyAlertOverlay } from '@/src/components/EmergencyAlertOverlay';
 import { SymbolIcon } from '@/src/components/symbol-icon';
+import { useGlobalAlert, useSensorStatePoll, useSettings, useStatusPoll, useVisionPoll } from '@/src/hooks/appHooks';
 import { useLanguage } from '@/src/i18n';
+import type { AlertLevel } from '@/src/api/types';
 import type { AppColors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
 import { useAppTheme } from '@/src/theme/theme-context';
 import { typography } from '@/src/theme/typography';
+import { rememberFalseWarningProfile, shouldTreatAsSafeFromFalseWarning } from '@/src/utils/falseWarningSession';
 
 function createTabStyles(colors: AppColors, bottomInset: number) {
   return StyleSheet.create({
@@ -115,57 +119,110 @@ function HorizontalTabBar({ state, descriptors, navigation }: BottomTabBarProps)
 export default function TabLayout() {
   const { t } = useLanguage();
   const { colors } = useAppTheme();
+  const status = useStatusPoll(true, 1500);
+  const vision = useVisionPoll(Boolean(status.data?.camera_active));
+  const sensorState = useSensorStatePoll(true, 1500);
+  const settings = useSettings();
+  const [acknowledgedAlert, setAcknowledgedAlert] = React.useState<AlertLevel | null>(null);
+
+  const sensorAlertRaw = status.data?.sensor_alert ?? 'SAFE';
+  const visionAlertRaw =
+    status.data?.vision_alert ??
+    (status.data?.camera_active ? (vision.data?.summary.vision_alert ?? 'CLEAR') : 'CLEAR');
+  const computedGlobalAlert = useGlobalAlert(sensorAlertRaw, visionAlertRaw);
+  const globalAlert = status.data?.global_alert ?? computedGlobalAlert;
+  const suppressedBySessionSafe = shouldTreatAsSafeFromFalseWarning(sensorState.data);
+  const hiddenByAcknowledgement = acknowledgedAlert === globalAlert && globalAlert !== 'SAFE';
+  const effectiveAlert: AlertLevel =
+    suppressedBySessionSafe || hiddenByAcknowledgement ? 'SAFE' : globalAlert;
+  const soundEnabled = settings.load.data?.soundEnabled ?? true;
+
+  React.useEffect(() => {
+    if (!acknowledgedAlert) return;
+    if (globalAlert === 'SAFE' || globalAlert !== acknowledgedAlert) {
+      setAcknowledgedAlert(null);
+    }
+  }, [acknowledgedAlert, globalAlert]);
+
+  const handleAcknowledge = React.useCallback(() => {
+    if (globalAlert === 'SAFE') return;
+    setAcknowledgedAlert(globalAlert);
+  }, [globalAlert]);
+
+  const handleFalseWarning = React.useCallback(() => {
+    rememberFalseWarningProfile(sensorState.data);
+    if (globalAlert !== 'SAFE') {
+      setAcknowledgedAlert(globalAlert);
+    }
+  }, [globalAlert, sensorState.data]);
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        headerShown: false,
-        animation: 'shift',
-        transitionSpec: {
-          animation: 'timing',
-          config: {
-            duration: 220,
+    <>
+      <Tabs
+        screenOptions={{
+          tabBarActiveTintColor: colors.primary,
+          headerShown: false,
+          animation: 'shift',
+          transitionSpec: {
+            animation: 'timing',
+            config: {
+              duration: 220,
+            },
           },
-        },
-        tabBar: (props) => <HorizontalTabBar {...props} />,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: t.home,
-          tabBarIcon: ({ color }) => (
-            <SymbolIcon sf="house.fill" fallbackName="home" size={24} color={String(color)} />
-          ),
-        }}
+          tabBar: (props) => <HorizontalTabBar {...props} />,
+        }}>
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: t.home,
+            tabBarIcon: ({ color }) => (
+              <SymbolIcon sf="house.fill" fallbackName="home" size={24} color={String(color)} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="sensors"
+          options={{
+            title: t.sensors,
+            tabBarIcon: ({ color }) => (
+              <SymbolIcon sf="speedometer" fallbackName="speedometer" size={24} color={String(color)} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="camera"
+          options={{
+            title: t.camera,
+            tabBarIcon: ({ color }) => (
+              <SymbolIcon sf="camera.fill" fallbackName="camera" size={24} color={String(color)} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="map"
+          options={{
+            title: t.map,
+            tabBarIcon: ({ color }) => (
+              <SymbolIcon sf="map.fill" fallbackName="map" size={24} color={String(color)} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            title: t.settings,
+            tabBarIcon: ({ color }) => (
+              <SymbolIcon sf="gearshape.fill" fallbackName="settings" size={24} color={String(color)} />
+            ),
+          }}
+        />
+      </Tabs>
+      <EmergencyAlertOverlay
+        alert={effectiveAlert}
+        soundEnabled={soundEnabled}
+        onAcknowledge={handleAcknowledge}
+        onFalseWarning={handleFalseWarning}
       />
-      <Tabs.Screen
-        name="sensors"
-        options={{
-          title: t.sensors,
-          tabBarIcon: ({ color }) => (
-            <SymbolIcon sf="speedometer" fallbackName="speedometer" size={24} color={String(color)} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="camera"
-        options={{
-          title: t.camera,
-          tabBarIcon: ({ color }) => (
-            <SymbolIcon sf="camera.fill" fallbackName="camera" size={24} color={String(color)} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: t.settings,
-          tabBarIcon: ({ color }) => (
-            <SymbolIcon sf="gearshape.fill" fallbackName="settings" size={24} color={String(color)} />
-          ),
-        }}
-      />
-    </Tabs>
+    </>
   );
 }
