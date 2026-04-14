@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>العساس — Crop Security Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --bg:#080a0d;--surface:#0f1318;--surface2:#161b22;--surface3:#1c2330;
+  --border:#1e2836;--border2:#263040;
+  --text:#dde2eb;--muted:#4a5568;--muted2:#64748b;
+  --green:#22c55e;--amber:#f59e0b;--orange:#f97316;--red:#ef4444;--blue:#3b82f6;--cyan:#06b6d4;
+  --fire:#ff4d1c;
+  --mono:'Space Mono',monospace;--sans:'Syne',sans-serif;
+}
+body.light-mode{
+  --bg:#f0f2f5;--surface:#ffffff;--surface2:#e8ecf0;--surface3:#dde3ea;
+  --border:#d0d8e4;--border2:#b8c4d4;
+  --text:#1a2233;--muted:#7a8899;--muted2:#5a6a80;
+  --green:#16a34a;--amber:#d97706;--orange:#ea580c;--red:#dc2626;--blue:#2563eb;--cyan:#0891b2;
+  --fire:#e53e10;
+}
+body.light-mode::before{background-image:linear-gradient(rgba(255,77,28,.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,77,28,.015) 1px,transparent 1px);}
+body.light-mode .log-box{background:#f8fafc;border-color:var(--border);}
+body.light-mode .pb{background:var(--surface2);}
+body.light-mode .mb{background:var(--surface2);}
+body.light-mode .cam-btn{background:var(--surface2);}
+body.light-mode .fc{background:var(--surface2);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(255,77,28,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,77,28,.025) 1px,transparent 1px);
+  background-size:48px 48px;}
+.app{display:grid;grid-template-columns:260px 1fr;grid-template-rows:64px 1fr;min-height:100vh;position:relative;z-index:1;}
+@media(max-width:900px){.app{grid-template-columns:1fr;}}
+
+/* ── Topbar ── */
+.topbar{grid-column:1/-1;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;padding:0 20px;gap:12px;}
+.logo-wrap{display:flex;align-items:center;}
+.logo-text{display:flex;flex-direction:column;line-height:1.25;}
+.logo-ar{font-size:22px;font-weight:800;color:var(--text);letter-spacing:-0.5px;}
+.logo-fr{font-size:10px;font-weight:400;color:var(--muted2);letter-spacing:1.5px;text-transform:uppercase;font-family:var(--mono);}
+.topbar-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.pill{font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:12px;border:1px solid;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;}
+.pill.ok{border-color:#16422a;color:var(--green);background:rgba(34,197,94,.07);}
+.pill.warn{border-color:#4a3200;color:var(--amber);background:rgba(245,158,11,.07);}
+.pill.err{border-color:#4a1a0a;color:var(--fire);background:rgba(255,77,28,.07);}
+.pill.info{border-color:var(--border2);color:var(--muted2);}
+.global-alert{font-family:var(--mono);font-size:12px;font-weight:700;padding:5px 14px;border-radius:4px;border:1px solid;letter-spacing:2px;text-transform:uppercase;transition:all .3s;}
+
+/* ── Sidebar ── */
+.sidebar{background:var(--surface);border-right:1px solid var(--border);
+  padding:16px 14px;display:flex;flex-direction:column;gap:12px;overflow-y:auto;}
+@media(max-width:900px){.sidebar{display:none;}}
+.section-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);padding:0 4px;margin-top:4px;}
+.slider-row{display:flex;flex-direction:column;gap:4px;}
+.slider-hd{display:flex;justify-content:space-between;align-items:baseline;}
+.slider-name{font-size:11px;font-weight:600;color:var(--text);}
+.slider-v{font-family:var(--mono);font-size:11px;color:var(--fire);}
+input[type=range]{width:100%;height:3px;appearance:none;background:var(--border2);border-radius:2px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{appearance:none;width:13px;height:13px;border-radius:50%;background:var(--fire);border:2px solid var(--bg);transition:transform .15s;}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.3);}
+.month-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:2px;}
+.mb{background:var(--surface2);border:1px solid var(--border);color:var(--muted2);font-family:var(--mono);font-size:9px;padding:4px 2px;border-radius:4px;cursor:pointer;text-align:center;transition:all .15s;text-transform:uppercase;}
+.mb:hover{border-color:var(--fire);color:var(--text);}
+.mb.active{background:var(--fire);border-color:var(--fire);color:white;}
+.preset-strip{display:flex;flex-direction:column;gap:6px;}
+.pb{font-family:var(--mono);font-size:10px;padding:7px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--muted2);cursor:pointer;text-transform:uppercase;letter-spacing:1px;transition:all .2s;text-align:left;}
+.pb:hover{border-color:var(--text);color:var(--text);}
+.pb.danger{border-color:#3a1108;color:#f87060;}
+.pb.danger:hover{background:rgba(255,77,28,.1);border-color:var(--fire);}
+
+/* ── Main ── */
+.main{padding:16px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;}
+.alert-header{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:700px){.alert-header{grid-template-columns:1fr;}}
+.alert-card{border:2px solid var(--border);border-radius:10px;padding:18px 20px;position:relative;overflow:hidden;background:var(--surface);transition:all .4s;}
+.alert-card::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;transition:background .4s;}
+.alert-card.safe{border-color:#16422a;}.alert-card.safe::before{background:var(--green);}
+.alert-card.warning{border-color:#4a3200;}.alert-card.warning::before{background:var(--amber);}
+.alert-card.fire{border-color:#4a1a0a;animation:pulseb 1.2s ease-in-out infinite;}
+.alert-card.fire::before{background:var(--fire);}
+.alert-card.smoke{border-color:#3d2800;}.alert-card.smoke::before{background:var(--orange);}
+.alert-card.intrusion{border-color:#0a1e3d;}.alert-card.intrusion::before{background:var(--blue);}
+.alert-card.clear{border-color:#0d2e1a;}.alert-card.clear::before{background:var(--green);}
+@keyframes pulseb{0%,100%{box-shadow:0 0 0 0 rgba(255,77,28,0)}50%{box-shadow:0 0 16px 3px rgba(255,77,28,.2)}}
+@keyframes firePulse{0%,100%{outline-color:rgba(255,77,28,0)}50%{outline-color:rgba(255,77,28,.6)}}
+body.fire-alarm{animation:firePulse 1s ease-in-out infinite;outline:3px solid transparent;outline-offset:-3px;}
+.card-label{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:8px;}
+.card-icon-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.card-icon{font-size:28px;line-height:1;}
+.card-title{font-size:24px;font-weight:800;letter-spacing:-1px;transition:color .3s;}
+.card-sub{font-family:var(--mono);font-size:10px;color:var(--muted2);margin-top:4px;line-height:1.6;}
+.mode-tag{font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:3px;display:inline-block;margin-top:6px;}
+.mode-tag.onnx{background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.2);}
+.mode-tag.demo{background:rgba(245,158,11,.1);color:var(--amber);border:1px solid rgba(245,158,11,.2);}
+.mode-tag.local{background:rgba(59,130,246,.1);color:var(--blue);border:1px solid rgba(59,130,246,.2);}
+.mini-scores{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.ms-label{font-family:var(--mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.ms-bar-w{background:var(--surface2);height:5px;border-radius:3px;overflow:hidden;margin-bottom:3px;}
+.ms-bar{height:100%;border-radius:3px;transition:width .5s,background .4s;}
+.ms-val{font-family:var(--mono);font-size:13px;font-weight:700;transition:color .3s;}
+
+/* ── Weather chart panel ── */
+.weather-chart-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 20px;}
+.wcp-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+.wcp-title{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);display:flex;align-items:center;gap:7px;}
+.wcp-title::before{content:'';display:block;width:5px;height:5px;border-radius:50%;background:var(--fire);flex-shrink:0;}
+.wcp-legend{display:flex;gap:14px;flex-wrap:wrap;}
+.wcp-leg-item{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--muted2);}
+.wcp-leg-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+.chart-tabs{display:flex;gap:4px;}
+.ctab{font-family:var(--mono);font-size:9px;padding:4px 9px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--muted2);cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:all .2s;}
+.ctab:hover{border-color:var(--text);color:var(--text);}
+.ctab.active{background:var(--fire);border-color:var(--fire);color:white;}
+.chart-wrap{position:relative;width:100%;height:240px;}
+.chart-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+.cstat{background:var(--surface2);border-radius:6px;padding:10px 12px;border:1px solid var(--border);}
+.cstat-name{font-family:var(--mono);font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;}
+.cstat-val{font-family:var(--mono);font-size:16px;font-weight:700;}
+.cstat-sub{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px;}
+
+/* ── Camera panel ── */
+.camera-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.camera-toolbar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.cam-btn{font-family:var(--mono);font-size:10px;padding:6px 12px;border-radius:5px;border:1px solid var(--border2);background:var(--surface2);color:var(--muted2);cursor:pointer;text-transform:uppercase;letter-spacing:1px;transition:all .2s;}
+.cam-btn:hover{border-color:var(--text);color:var(--text);}
+.cam-btn.active{background:var(--fire);border-color:var(--fire);color:white;}
+.cam-btn.stop{border-color:#4a1a0a;color:#f87060;}
+.cam-btn.stop:hover{background:rgba(255,77,28,.15);}
+.toggle-wrap{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--muted2);}
+.toggle{width:28px;height:16px;background:var(--border2);border-radius:8px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;}
+.toggle.on{background:var(--fire);}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:white;transition:transform .2s;}
+.toggle.on::after{transform:translateX(12px);}
+.conf-mini{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--muted2);}
+.conf-mini input[type=range]{width:70px;height:3px;}
+.cam-stream-wrap{position:relative;background:#000;aspect-ratio:4/3;max-height:420px;}
+.cam-stream-wrap img{width:100%;height:100%;object-fit:contain;display:block;}
+.cam-overlay{position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:5px;align-items:flex-end;}
+.det-badge{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:3px;border:1px solid;letter-spacing:1px;text-transform:uppercase;backdrop-filter:blur(4px);}
+.det-badge.fire-b{background:rgba(239,68,68,.2);border-color:#ef4444;color:#fca5a5;}
+.det-badge.smoke-b{background:rgba(249,115,22,.2);border-color:#f97316;color:#fdba74;}
+.det-badge.person-b{background:rgba(59,130,246,.2);border-color:#3b82f6;color:#93c5fd;}
+.det-badge.animal-b{background:rgba(168,85,247,.2);border-color:#a855f7;color:#d8b4fe;}
+.cam-inactive{display:flex;align-items:center;justify-content:center;min-height:280px;font-family:var(--mono);font-size:12px;color:var(--muted);flex-direction:column;gap:8px;}
+
+/* ── Spread ── */
+.spread-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;position:relative;overflow:hidden;transition:border-color .4s;}
+.spread-card::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;transition:background .4s;}
+.spread-card.green{border-color:#16422a;}.spread-card.green::before{background:var(--green);}
+.spread-card.amber{border-color:#4a3200;}.spread-card.amber::before{background:var(--amber);}
+.spread-card.orange{border-color:#5c2d00;}.spread-card.orange::before{background:var(--orange);}
+.spread-card.red{border-color:#4a1a0a;}.spread-card.red::before{background:var(--red);}
+.spread-row{display:flex;align-items:baseline;gap:10px;margin:10px 0 4px;}
+.spread-num{font-size:42px;font-weight:800;font-family:var(--mono);letter-spacing:-2px;line-height:1;transition:color .4s;}
+.spread-u{font-family:var(--mono);font-size:12px;color:var(--muted2);}
+.spread-lv{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:3px;border:1px solid;letter-spacing:1px;text-transform:uppercase;margin-left:6px;}
+.spread-desc{font-family:var(--mono);font-size:10px;color:var(--muted2);margin-bottom:10px;}
+.gauge{height:8px;border-radius:4px;background:var(--surface2);overflow:hidden;margin:6px 0 4px;}
+.gauge-fill{height:100%;border-radius:4px;transition:width .6s cubic-bezier(.4,0,.2,1),background .4s;}
+.gauge-ticks{display:flex;justify-content:space-between;}
+.gauge-tick{font-family:var(--mono);font-size:8px;color:var(--muted);}
+.factors-g{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px;}
+@media(max-width:600px){.factors-g{grid-template-columns:repeat(2,1fr);}}
+.fc{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;}
+.fc-name{font-family:var(--mono);font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px;}
+.fc-val{font-family:var(--mono);font-size:14px;font-weight:700;transition:color .3s;}
+.fc-formula{font-family:var(--mono);font-size:8px;color:var(--muted);margin-top:1px;}
+
+/* ── Bottom row ── */
+.bottom-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:700px){.bottom-row{grid-template-columns:1fr;}}
+.gates-panel,.log-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;}
+.panel-title{font-family:var(--mono);font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:7px;}
+.gates-panel .panel-title::before,.log-panel .panel-title::before,.spread-card .panel-title::before{content:'';display:block;width:5px;height:5px;border-radius:50%;background:var(--fire);flex-shrink:0;}
+.gate-row{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;color:var(--muted2);margin-bottom:7px;}
+.gate-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:all .3s;}
+.gate-dot.on{background:var(--amber);box-shadow:0 0 5px var(--amber);}
+.gate-dot.off{background:var(--border2);}
+.proba-list{display:flex;flex-direction:column;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);}
+.proba-row{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;}
+.proba-name{width:60px;color:var(--muted2);flex-shrink:0;}
+.proba-bw{flex:1;background:var(--border);height:5px;border-radius:3px;overflow:hidden;}
+.proba-b{height:100%;border-radius:3px;transition:width .4s;}
+.proba-pct{width:34px;text-align:right;flex-shrink:0;}
+
+/* ── ntfy panel ── */
+.tg-panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin-top:0;}
+.tg-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
+.tg-input{flex:1;min-width:140px;font-family:var(--mono);font-size:11px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:5px;color:var(--text);outline:none;transition:border-color .2s;}
+.tg-input:focus{border-color:var(--blue);}
+.tg-btn{font-family:var(--mono);font-size:10px;padding:7px 12px;border-radius:5px;border:1px solid var(--border2);background:var(--surface2);color:var(--muted2);cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:all .2s;white-space:nowrap;}
+.tg-btn:hover{border-color:var(--text);color:var(--text);}
+.tg-btn.primary{border-color:#1a4a7a;color:var(--blue);background:rgba(59,130,246,.08);}
+.tg-btn.primary:hover{background:rgba(59,130,246,.18);}
+.tg-btn.ok{border-color:#1a4a2a;color:var(--green);background:rgba(34,197,94,.08);}
+.tg-status{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:3px;display:inline-block;letter-spacing:1px;border:1px solid var(--border);}
+.tg-status.on{background:rgba(34,197,94,.1);color:var(--green);border-color:#1a4a2a;}
+.tg-status.off{background:rgba(100,116,139,.1);color:var(--muted2);}
+.tg-title::before{display:none !important;}
+.tg-cooldown{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:4px;}
+.log-box{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:12px;font-family:var(--mono);font-size:10px;color:var(--muted2);line-height:1.8;max-height:180px;overflow-y:auto;}
+.lf{color:var(--fire)}.lw{color:var(--amber)}.ls{color:var(--green)}.li{color:var(--cyan)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── TOPBAR ── -->
+  <div class="topbar">
+    <div class="logo-wrap">
+      <div class="logo-text">
+        <span class="logo-ar">العساس</span>
+        <span class="logo-fr">Le gardien</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div id="pill-api"  class="pill info">⟳ API...</div>
+      <div id="pill-sens" class="pill info">Capteurs</div>
+      <div id="pill-vis"  class="pill info">Vision</div>
+      <div id="pill-cam"  class="pill info">Cam OFF</div>
+      <button id="btn-theme" onclick="toggleTheme()" style="font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--muted2);cursor:pointer;letter-spacing:1px;transition:all .2s;">☀ LIGHT</button>
+      <button id="btn-sound" onclick="toggleSound()" style="font-family:var(--mono);font-size:10px;padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--muted2);cursor:pointer;letter-spacing:1px;transition:all .2s;">🔔 SON ON</button>
+      <div id="global-alert" class="global-alert" style="border-color:#16422a;color:var(--green)">● SAFE</div>
+    </div>
+  </div>
+
+  <!-- ── SIDEBAR ── -->
+  <div class="sidebar">
+    <div class="section-label">Capteurs MQ</div>
+    <div class="slider-row">
+      <div class="slider-hd"><span class="slider-name">MQ2 — Fumée</span><span class="slider-v" id="sv-mq2">100</span></div>
+      <input type="range" id="s-mq2" min="0" max="1023" value="100" oninput="onSlider()">
+    </div>
+    <div class="slider-row">
+      <div class="slider-hd"><span class="slider-name">MQ6 — Butane</span><span class="slider-v" id="sv-mq6">80</span></div>
+      <input type="range" id="s-mq6" min="0" max="1023" value="80" oninput="onSlider()">
+    </div>
+    <div class="section-label" style="margin-top:4px">Météo</div>
+    <div class="slider-row">
+      <div class="slider-hd"><span class="slider-name">Température</span><span class="slider-v" id="sv-temp">18 °C</span></div>
+      <input type="range" id="s-temp" min="-10" max="50" value="18" oninput="onSlider()">
+    </div>
+    <div class="slider-row">
+      <div class="slider-hd"><span class="slider-name">Humidité</span><span class="slider-v" id="sv-rh">78 %</span></div>
+      <input type="range" id="s-rh" min="0" max="100" value="78" oninput="onSlider()">
+    </div>
+    <div class="slider-row">
+      <div class="slider-hd"><span class="slider-name">Vent</span><span class="slider-v" id="sv-wind">6 km/h</span></div>
+      <input type="range" id="s-wind" min="0" max="80" value="6" oninput="onSlider()">
+    </div>
+    <div class="slider-row">
+      <div class="slider-hd"><span class="slider-name">Pluie</span><span class="slider-v" id="sv-rain">1.5 mm</span></div>
+      <input type="range" id="s-rain" min="0" max="50" step="0.5" value="1.5" oninput="onSlider()">
+    </div>
+    <div class="section-label" style="margin-top:4px">Mois</div>
+    <div class="month-grid" id="month-grid"></div>
+    <div class="section-label" style="margin-top:8px">Scénarios rapides</div>
+    <div class="preset-strip">
+      <button class="pb" onclick="preset('normal')">☀ Matin normal</button>
+      <button class="pb" onclick="preset('gas')">💨 Fuite gaz</button>
+      <button class="pb" onclick="preset('hotday')">🌡 Journée chaude</button>
+      <button class="pb danger" onclick="preset('fire')">🔥 Incendie</button>
+      <button class="pb danger" onclick="preset('extreme')">☠ Extrême</button>
+    </div>
+  </div>
+
+  <!-- ── MAIN ── -->
+  <div class="main">
+
+    <!-- Alert cards -->
+    <div class="alert-header">
+      <div class="alert-card safe" id="card-sensor">
+        <div class="card-label">Détection capteurs (MQ + météo)</div>
+        <div class="card-icon-row">
+          <div class="card-icon" id="icon-sensor">✅</div>
+          <div>
+            <div class="card-title" id="title-sensor" style="color:var(--green)">SAFE</div>
+            <div id="tag-sensor" class="mode-tag local">LOCAL</div>
+          </div>
+        </div>
+        <div class="card-sub" id="sub-sensor">Conf: — | Classe: — | Safe zone: —</div>
+        <div class="mini-scores">
+          <div>
+            <div class="ms-label">Fumée / gaz</div>
+            <div class="ms-bar-w"><div class="ms-bar" id="bar-smoke" style="width:5%;background:var(--green)"></div></div>
+            <div class="ms-val" id="val-smoke" style="color:var(--green)">—</div>
+          </div>
+          <div>
+            <div class="ms-label">Risque météo</div>
+            <div class="ms-bar-w"><div class="ms-bar" id="bar-weather" style="width:5%;background:var(--green)"></div></div>
+            <div class="ms-val" id="val-weather" style="color:var(--green)">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="alert-card clear" id="card-vision">
+        <div class="card-label">Détection visuelle (caméra IA)</div>
+        <div class="card-icon-row">
+          <div class="card-icon" id="icon-vision">📷</div>
+          <div>
+            <div class="card-title" id="title-vision" style="color:var(--green)">CLEAR</div>
+            <div class="mode-tag onnx" id="tag-vision" style="display:none">ONNX</div>
+          </div>
+        </div>
+        <div class="card-sub" id="sub-vision">Caméra inactive — active la caméra ci-dessous</div>
+        <div class="mini-scores" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+          <div><div class="ms-label">Feux détectés</div><div class="ms-val" id="vis-fire" style="color:var(--muted2)">0</div></div>
+          <div><div class="ms-label">Fumée détectée</div><div class="ms-val" id="vis-smoke" style="color:var(--muted2)">0</div></div>
+          <div><div class="ms-label">Personnes</div><div class="ms-val" id="vis-person" style="color:var(--muted2)">0</div></div>
+          <div><div class="ms-label">Animaux</div><div class="ms-val" id="vis-animal" style="color:var(--muted2)">0</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── WEATHER CHART PANEL ── -->
+    <div class="weather-chart-panel">
+      <div class="wcp-header">
+        <div class="wcp-title">Évolution météo — 24h (données mock)</div>
+        <div class="chart-tabs">
+          <button class="ctab active" onclick="showChart('all',this)">Tout</button>
+          <button class="ctab" onclick="showChart('temp',this)">Temp</button>
+          <button class="ctab" onclick="showChart('hum',this)">Humidité</button>
+          <button class="ctab" onclick="showChart('wind',this)">Vent</button>
+        </div>
+      </div>
+      <div class="wcp-legend">
+        <div class="wcp-leg-item"><div class="wcp-leg-dot" style="background:#ff4d1c"></div>Température (°C)</div>
+        <div class="wcp-leg-item"><div class="wcp-leg-dot" style="background:#3b82f6"></div>Humidité (%)</div>
+        <div class="wcp-leg-item"><div class="wcp-leg-dot" style="background:#22c55e"></div>Vent (km/h)</div>
+      </div>
+      <div class="chart-wrap" style="margin-top:12px;">
+        <canvas id="weatherChart" role="img" aria-label="Graphique d'évolution de la température, humidité et vent sur 24 heures">Données météo sur 24h toutes les 4 heures.</canvas>
+      </div>
+      <div class="chart-stats">
+        <div class="cstat">
+          <div class="cstat-name">Temp moy / max</div>
+          <div class="cstat-val" id="stat-temp" style="color:#ff4d1c">—</div>
+          <div class="cstat-sub" id="stat-temp-sub">—</div>
+        </div>
+        <div class="cstat">
+          <div class="cstat-name">Humidité moy / min</div>
+          <div class="cstat-val" id="stat-hum" style="color:#3b82f6">—</div>
+          <div class="cstat-sub" id="stat-hum-sub">—</div>
+        </div>
+        <div class="cstat">
+          <div class="cstat-name">Vent moy / max</div>
+          <div class="cstat-val" id="stat-wind" style="color:#22c55e">—</div>
+          <div class="cstat-sub" id="stat-wind-sub">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Camera panel -->
+    <div class="camera-panel">
+      <div class="camera-toolbar">
+        <button class="cam-btn" id="btn-start" onclick="startCamera()">▶ Démarrer caméra</button>
+        <button class="cam-btn stop" id="btn-stop" onclick="stopCamera()" style="display:none">■ Arrêter</button>
+        <span class="pill info">Sync web/mobile active</span>
+      </div>
+      <div class="cam-stream-wrap" id="cam-wrap">
+        <div class="cam-inactive" id="cam-inactive">
+          <span style="font-size:32px">📷</span>
+          <span>Caméra inactive</span>
+          <span style="font-size:10px;color:var(--muted)">Lance server.py puis clique "Démarrer caméra"</span>
+        </div>
+        <img id="cam-img" src="" style="display:none" alt="flux caméra">
+        <div class="cam-overlay" id="cam-overlay"></div>
+      </div>
+    </div>
+
+    <!-- Propagation -->
+    <div class="spread-card green" id="spread-card">
+      <div class="panel-title" style="margin-bottom:6px">Vitesse de propagation — Rothermel / McArthur</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--muted);">V = V<sub>base</sub> × F<sub>vent</sub> × F<sub>humidité</sub> × F<sub>temp</sub> × F<sub>saison</sub> × F<sub>pluie</sub></div>
+      <div class="spread-row">
+        <div class="spread-num" id="sp-num" style="color:var(--green)">—</div>
+        <div><span class="spread-u">m/min</span><span class="spread-lv" id="sp-lv" style="border-color:#16422a;color:var(--green)">—</span></div>
+      </div>
+      <div class="spread-desc" id="sp-desc">—</div>
+      <div class="gauge"><div class="gauge-fill" id="sp-gauge" style="width:0%;background:var(--green)"></div></div>
+      <div class="gauge-ticks">
+        <span class="gauge-tick">0</span><span class="gauge-tick">2 Faible</span><span class="gauge-tick">8 Modéré</span><span class="gauge-tick">25 Rapide</span><span class="gauge-tick">40+ m/min</span>
+      </div>
+      <div class="factors-g">
+        <div class="fc"><div class="fc-name">V base</div><div class="fc-val" id="f-base" style="color:var(--muted2)">2.0</div><div class="fc-formula">m/min neutre</div></div>
+        <div class="fc"><div class="fc-name">F vent</div><div class="fc-val" id="f-wind" style="color:var(--blue)">—</div><div class="fc-formula">1+(v/10)^1.5</div></div>
+        <div class="fc"><div class="fc-name">F humidité</div><div class="fc-val" id="f-hum" style="color:var(--blue)">—</div><div class="fc-formula">exp(−0.035×RH)</div></div>
+        <div class="fc"><div class="fc-name">F température</div><div class="fc-val" id="f-temp" style="color:var(--blue)">—</div><div class="fc-formula">1+0.015×max(0,T−20)</div></div>
+        <div class="fc"><div class="fc-name">F saison</div><div class="fc-val" id="f-season" style="color:var(--blue)">—</div><div class="fc-formula">1.3 si juin–sept</div></div>
+        <div class="fc"><div class="fc-name">F pluie</div><div class="fc-val" id="f-rain" style="color:var(--blue)">—</div><div class="fc-formula">max(0.1, 1−pluie/5)</div></div>
+      </div>
+    </div>
+
+    <!-- Bottom: gates + log -->
+    <div class="bottom-row">
+      <div class="gates-panel">
+        <div class="panel-title">Gates environnementaux (v5)</div>
+        <div class="gate-row"><div class="gate-dot off" id="g-cold"></div><span id="g-cold-txt">Temp froide (&lt;15°C) — inactif</span></div>
+        <div class="gate-row"><div class="gate-dot off" id="g-humid"></div><span id="g-humid-txt">Humidité haute (&gt;75%) — inactif</span></div>
+        <div class="gate-row"><div class="gate-dot off" id="g-lowrisk"></div><span id="g-lowrisk-txt">Faible risque météo (&lt;0.30) — inactif</span></div>
+        <div class="gate-row"><div class="gate-dot off" id="g-safe"></div><span id="g-safe-txt">Zone sûre capteurs — inactif</span></div>
+        <div class="proba-list">
+          <div class="proba-row"><span class="proba-name">NoGas</span><div class="proba-bw"><div class="proba-b" id="pb-NoGas" style="width:90%;background:var(--green)"></div></div><span class="proba-pct" id="pv-NoGas">90%</span></div>
+          <div class="proba-row"><span class="proba-name">Smoke</span><div class="proba-bw"><div class="proba-b" id="pb-Smoke" style="width:5%;background:var(--fire)"></div></div><span class="proba-pct" id="pv-Smoke">5%</span></div>
+          <div class="proba-row"><span class="proba-name">Mixture</span><div class="proba-bw"><div class="proba-b" id="pb-Mixture" style="width:3%;background:var(--amber)"></div></div><span class="proba-pct" id="pv-Mixture">3%</span></div>
+          <div class="proba-row"><span class="proba-name">Perfume</span><div class="proba-bw"><div class="proba-b" id="pb-Perfume" style="width:2%;background:var(--blue)"></div></div><span class="proba-pct" id="pv-Perfume">2%</span></div>
+        </div>
+      </div>
+      <div class="log-panel">
+        <div class="panel-title">Journal des événements</div>
+        <div class="log-box" id="log-box"><div class="li">-- Démarrage العساس --</div></div>
+      </div>
+    </div>
+
+    <!-- ntfy panel -->
+    <div class="tg-panel" id="ntfy-panel">
+      <div class="panel-title tg-title">
+        📱 Notifications ntfy.sh
+        <span id="ntfy-status-badge" class="tg-status off" style="margin-left:8px;">Non testé</span>
+      </div>
+      <div class="tg-row">
+        <input class="tg-input" id="ntfy-topic" type="text" placeholder="Topic (ex: alassas-monnom)" autocomplete="off">
+        <input class="tg-input" id="ntfy-server" type="text" placeholder="Serveur (défaut: https://ntfy.sh)" autocomplete="off">
+      </div>
+      <div class="tg-row">
+        <input class="tg-input" id="ntfy-cooldown" type="number" min="10" max="3600" placeholder="Cooldown sec (défaut: 60)" style="max-width:180px">
+        <button class="tg-btn primary" onclick="ntfySave()">💾 Appliquer</button>
+        <button class="tg-btn ok" onclick="ntfyTest()">📨 Tester</button>
+      </div>
+      <div class="tg-cooldown">Installez <strong>ntfy</strong> depuis le Play Store → abonnez-vous au même topic · 📷 Capture caméra jointe si active</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ── Logo injection (base64 embedded) ── */
+
+
+const API = (() => {
+  const apiOverride = new URLSearchParams(window.location.search).get('api');
+  if (apiOverride) return apiOverride.replace(/\/+$/, '');
+  if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+    return window.location.origin;
+  }
+  return 'http://127.0.0.1:5000';
+})();
+const MONTHS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+let currentMonth = 4, apiOnline = false, camActive = false;
+let debounceTimer = null, lastSensorLevel = null, lastVisionAlert = null;
+let logLines = [], detPollTimer = null;
+
+/* ── MOCK DATA 24h (toutes les 4h : 00h 04h 08h 12h 16h 20h 24h) ── */
+const MOCK_LABELS = ['00:00','04:00','08:00','12:00','16:00','20:00','24:00'];
+
+const MOCK_SCENARIOS = {
+  normal: {
+    temp:  [16, 14, 17, 24, 28, 22, 18],
+    hum:   [82, 85, 76, 58, 45, 60, 74],
+    wind:  [4,  3,  6,  9,  12, 8,  5],
+  },
+  hotday: {
+    temp:  [22, 20, 26, 38, 42, 35, 26],
+    hum:   [35, 38, 28, 16, 12, 20, 30],
+    wind:  [6,  4,  10, 18, 22, 14, 8],
+  },
+  fire: {
+    temp:  [28, 26, 34, 44, 48, 40, 32],
+    hum:   [22, 24, 16, 8,  5,  12, 18],
+    wind:  [10, 8,  18, 30, 38, 25, 14],
+  },
+  extreme: {
+    temp:  [32, 30, 38, 48, 52, 44, 36],
+    hum:   [12, 14, 8,  4,  3,  7,  10],
+    wind:  [14, 12, 22, 40, 50, 32, 18],
+  },
+  gas: {
+    temp:  [18, 17, 20, 26, 28, 24, 20],
+    hum:   [60, 62, 55, 48, 44, 52, 58],
+    wind:  [2,  2,  3,  5,  4,  3,  2],
+  },
+};
+
+let currentScenario = 'normal';
+let weatherChart = null;
+let activeDatasets = {temp: true, hum: true, wind: true};
+
+function buildChartData(scenario) {
+  const d = MOCK_SCENARIOS[scenario] || MOCK_SCENARIOS.normal;
+  return {
+    labels: MOCK_LABELS,
+    datasets: [
+      {
+        label: 'Température (°C)',
+        data: d.temp,
+        borderColor: '#ff4d1c',
+        backgroundColor: 'rgba(255,77,28,0.10)',
+        pointBackgroundColor: '#ff4d1c',
+        pointRadius: 5,
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        yAxisID: 'yTemp',
+        borderDash: [],
+        pointStyle: 'circle',
+        hidden: !activeDatasets.temp,
+      },
+      {
+        label: 'Humidité (%)',
+        data: d.hum,
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59,130,246,0.08)',
+        pointBackgroundColor: '#3b82f6',
+        pointRadius: 5,
+        borderWidth: 2,
+        fill: false,
+        tension: 0.4,
+        yAxisID: 'yHum',
+        borderDash: [5,3],
+        pointStyle: 'triangle',
+        hidden: !activeDatasets.hum,
+      },
+      {
+        label: 'Vent (km/h)',
+        data: d.wind,
+        borderColor: '#22c55e',
+        backgroundColor: 'rgba(34,197,94,0.08)',
+        pointBackgroundColor: '#22c55e',
+        pointRadius: 5,
+        borderWidth: 2,
+        fill: false,
+        tension: 0.4,
+        yAxisID: 'yWind',
+        borderDash: [2,2],
+        pointStyle: 'rect',
+        hidden: !activeDatasets.wind,
+      },
+    ]
+  };
+}
+
+function updateStats(scenario) {
+  const d = MOCK_SCENARIOS[scenario] || MOCK_SCENARIOS.normal;
+  const avg = arr => (arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(1);
+  const max = arr => Math.max(...arr);
+  const min = arr => Math.min(...arr);
+  document.getElementById('stat-temp').textContent = avg(d.temp) + '°C';
+  document.getElementById('stat-temp-sub').textContent = 'Max: ' + max(d.temp) + '°C';
+  document.getElementById('stat-hum').textContent = avg(d.hum) + '%';
+  document.getElementById('stat-hum-sub').textContent = 'Min: ' + min(d.hum) + '%';
+  document.getElementById('stat-wind').textContent = avg(d.wind).replace('.','.')+' km/h';
+  document.getElementById('stat-wind-sub').textContent = 'Max: ' + max(d.wind) + ' km/h';
+}
+
+function initWeatherChart() {
+  const isDark = !document.body.classList.contains('light-mode');
+  const gridCol = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+  const tickCol = isDark ? '#4a5568' : '#7a8899';
+  const ctx = document.getElementById('weatherChart').getContext('2d');
+  weatherChart = new Chart(ctx, {
+    type: 'line',
+    data: buildChartData(currentScenario),
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: isDark ? '#161b22' : '#ffffff',
+          borderColor: isDark ? '#263040' : '#d0d8e4',
+          borderWidth: 1,
+          titleColor: isDark ? '#dde2eb' : '#1a2233',
+          bodyColor: isDark ? '#64748b' : '#5a6a80',
+          titleFont: { family: "'Space Mono', monospace", size: 11 },
+          bodyFont:  { family: "'Space Mono', monospace", size: 10 },
+          padding: 10,
+          callbacks: {
+            label: ctx => {
+              const units = ['°C', '%', ' km/h'];
+              return ' ' + ctx.dataset.label.split(' ')[0] + ': ' + ctx.parsed.y + units[ctx.datasetIndex];
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: tickCol, font: { family: "'Space Mono', monospace", size: 9 }, autoSkip: false, maxRotation: 0 },
+          grid:  { color: gridCol },
+          border:{ color: gridCol },
+        },
+        yTemp: {
+          position: 'left',
+          ticks: { color: '#ff4d1c', font: { family: "'Space Mono', monospace", size: 9 }, callback: v => v + '°' },
+          grid:  { color: gridCol },
+          border:{ color: gridCol },
+          title: { display: false },
+        },
+        yHum: {
+          position: 'right',
+          min: 0, max: 100,
+          ticks: { color: '#3b82f6', font: { family: "'Space Mono', monospace", size: 9 }, callback: v => v + '%' },
+          grid:  { drawOnChartArea: false },
+          border:{ color: gridCol },
+        },
+        yWind: {
+          position: 'right',
+          min: 0,
+          ticks: { color: '#22c55e', font: { family: "'Space Mono', monospace", size: 9 }, callback: v => v + 'km/h' },
+          grid:  { drawOnChartArea: false },
+          border:{ color: gridCol },
+          offset: true,
+        },
+      }
+    }
+  });
+  updateStats(currentScenario);
+}
+
+function refreshChartData(scenario) {
+  if (!weatherChart) return;
+  const newData = buildChartData(scenario);
+  weatherChart.data.datasets.forEach((ds, i) => {
+    ds.data = newData.datasets[i].data;
+    ds.hidden = newData.datasets[i].hidden;
+  });
+  weatherChart.update('active');
+  updateStats(scenario);
+}
+
+function showChart(type, btn) {
+  document.querySelectorAll('.ctab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (type === 'all') {
+    activeDatasets = {temp: true, hum: true, wind: true};
+  } else if (type === 'temp') {
+    activeDatasets = {temp: true, hum: false, wind: false};
+  } else if (type === 'hum') {
+    activeDatasets = {temp: false, hum: true, wind: false};
+  } else if (type === 'wind') {
+    activeDatasets = {temp: false, hum: false, wind: true};
+  }
+  refreshChartData(currentScenario);
+}
+
+/* ── Mois ── */
+const mg = document.getElementById('month-grid');
+MONTHS.forEach((m,i)=>{
+  const b = document.createElement('button');
+  b.className = 'mb'+(i+1===currentMonth?' active':'');
+  b.textContent = m;
+  b.onclick = ()=>{ currentMonth=i+1; document.querySelectorAll('.mb').forEach((x,j)=>x.classList.toggle('active',j===i)); trigger(); };
+  mg.appendChild(b);
+});
+
+/* ── Log ── */
+function log(msg, cls='li'){
+  const t = new Date().toLocaleTimeString('fr-FR');
+  logLines.unshift(`<div class="${cls}">[${t}] ${msg}</div>`);
+  if(logLines.length>60)logLines.pop();
+  document.getElementById('log-box').innerHTML = logLines.join('');
+}
+
+/* ── API check ── */
+async function checkApi(){
+  const wasOnline = apiOnline;
+  try{
+    const r = await fetch(API+'/status',{signal:AbortSignal.timeout(2000)});
+    const d = await r.json();
+    apiOnline = true;
+    const pApi = document.getElementById('pill-api');
+    pApi.className='pill ok'; pApi.textContent='● API';
+    document.getElementById('pill-sens').className = d.sensors_ok?'pill ok':'pill warn';
+    document.getElementById('pill-sens').textContent = d.sensors_ok?'Capteurs ONNX':'Capteurs démo';
+    document.getElementById('pill-vis').className  = d.vision_ok?'pill ok':'pill warn';
+    document.getElementById('pill-vis').textContent = d.vision_ok?'Vision ONNX':'Vision off';
+    applyCameraState(Boolean(d.camera_active), 'sync');
+    if(!wasOnline) log('API connectée','ls');
+  }catch{
+    apiOnline=false;
+    document.getElementById('pill-api').className='pill err';
+    document.getElementById('pill-api').textContent='✕ API off';
+    if(wasOnline) log('API non disponible — lance: python server.py','lw');
+    applyCameraState(false, 'sync');
+  }
+}
+
+/* ── Sliders ── */
+function getVals(){
+  return{mq2:+document.getElementById('s-mq2').value,mq6:+document.getElementById('s-mq6').value,temperature:+document.getElementById('s-temp').value,rh:+document.getElementById('s-rh').value,wind:+document.getElementById('s-wind').value,rain:+document.getElementById('s-rain').value,month_num:currentMonth};
+}
+function refreshDisplays(){
+  const v=getVals();
+  document.getElementById('sv-mq2').textContent=v.mq2;
+  document.getElementById('sv-mq6').textContent=v.mq6;
+  document.getElementById('sv-temp').textContent=v.temperature+' °C';
+  document.getElementById('sv-rh').textContent=v.rh+' %';
+  document.getElementById('sv-wind').textContent=v.wind+' km/h';
+  document.getElementById('sv-rain').textContent=v.rain+' mm';
+}
+function onSlider(){refreshDisplays();clearTimeout(debounceTimer);debounceTimer=setTimeout(updateSensors,120);}
+function trigger(){clearTimeout(debounceTimer);debounceTimer=setTimeout(updateSensors,80);}
+
+/* ── Simulation locale capteurs ── */
+function localSensors(d){
+  let sp,gc,proba,sz;
+  if(d.mq2<150&&d.mq6<120){sp=0.05;gc='NoGas';proba={Mixture:.01,NoGas:.96,Perfume:.02,Smoke:.01};sz=true;}
+  else{
+    const c=(d.mq2/1023)*.6+(d.mq6/1023)*.4;
+    let pS=Math.min(.97,c**.8*1.1),pM=Math.min(.9,c**1.1*.7),pP=Math.max(.01,.15-c*.15),pN=Math.max(.01,1-c*1.2);
+    const t=pS+pM+pP+pN;pS/=t;pM/=t;pP/=t;pN/=t;
+    sp=Math.min(pM*.6+pP*.05+pS,.85);
+    proba={Mixture:+pM.toFixed(4),NoGas:+pN.toFixed(4),Perfume:+pP.toFixed(4),Smoke:+pS.toFixed(4)};
+    gc=Object.entries(proba).sort((a,b)=>b[1]-a[1])[0][0];sz=false;
+  }
+  const{temperature:T,rh:RH,wind:W,rain:R,month_num:M}=d;
+  let fr=0;
+  if(T>35)fr+=.35;else if(T>28)fr+=.22;else if(T>20)fr+=.10;else fr-=.05;
+  fr+=Math.max(0,1-RH/100)*.30;
+  if(W>30)fr+=.25;else if(W>15)fr+=.15;else if(W>8)fr+=.07;
+  if(R>5)fr-=.30;else if(R>1)fr-=.15;
+  if(M>=6&&M<=9)fr+=.12;else if(M===5||M===10)fr+=.05;
+  fr=Math.max(.01,Math.min(.99,fr));
+  const gates=[];
+  if(T<15){sp*=.25;gates.push({name:'cold_temp',label:'Temp froide → ×0.25'});}
+  if(fr<.30){sp*=Math.max(.30,fr/.30*.5);gates.push({name:'low_weather_risk',label:'Faible risque météo → ×'+Math.max(.30,fr/.30*.5).toFixed(2)});}
+  if(RH>75){const rhMult=Math.max(.40,1-(RH-75)/100);fr*=rhMult;gates.push({name:'high_humidity',label:'Humidité haute → ×'+rhMult.toFixed(2)});}
+  sp=+Math.min(sp,.85).toFixed(4);fr=+fr.toFixed(4);
+  const sf=.55,sw=.35,rf=.60,rw=.40;
+  let alert,conf;
+  if(sp>sf&&fr>rf){alert='FIRE';conf=+((sp+fr)/2).toFixed(3);}
+  else if(sp>sw||fr>rw){alert='WARNING';conf=+Math.max(sp,fr).toFixed(3);}
+  else{alert='SAFE';conf=+(1-Math.max(sp,fr)).toFixed(3);}
+  const spread=localSpread(T,RH,W,R,M);
+  return{success:true,alert,smoke_prob:sp,fire_risk_prob:fr,gas_class:gc,class_proba:proba,confidence:conf,gates_applied:gates,safe_zone_applied:sz,model_mode:'local',thresholds:{smoke_fire:sf,smoke_warning:sw,risk_fire:rf,risk_warning:rw},spread_speed:spread};
+}
+
+function localSpread(T,RH,W,R,M){
+  const V=2.0,fw=1+(W/10)**1.5,fh=Math.exp(-.035*RH),ft=1+.015*Math.max(0,T-20);
+  const fs=(M>=6&&M<=9)?1.3:(M===5||M===10)?1.1:1.0,fr=Math.max(.1,1-R/5);
+  const speed=+(V*fw*fh*ft*fs*fr).toFixed(2);
+  let level,desc,color;
+  if(speed<2){level='FAIBLE';desc='Feu contrôlable à pied';color='green';}
+  else if(speed<8){level='MODÉRÉ';desc='Nécessite des véhicules';color='amber';}
+  else if(speed<25){level='RAPIDE';desc='Feu de garrigue / maquis';color='orange';}
+  else{level='EXTRÊME';desc='Feu de couronne, incontrôlable';color='red';}
+  return{speed_m_per_min:speed,level,description:desc,color,factors:{V_base:V,F_vent:+fw.toFixed(3),F_humidite:+fh.toFixed(3),F_temp:+ft.toFixed(3),F_saison:+fs.toFixed(3),F_pluie:+fr.toFixed(3)}};
+}
+
+/* ── Render capteurs ── */
+function renderSensors(r){
+  const cm={SAFE:'var(--green)',WARNING:'var(--amber)',FIRE:'var(--fire)'};
+  const clm={SAFE:'safe',WARNING:'warning',FIRE:'fire'};
+  const im={SAFE:'✅',WARNING:'⚠️',FIRE:'🔥'};
+  const col=cm[r.alert];
+  document.getElementById('card-sensor').className='alert-card '+clm[r.alert];
+  document.getElementById('icon-sensor').textContent=im[r.alert];
+  document.getElementById('title-sensor').textContent=r.alert;
+  document.getElementById('title-sensor').style.color=col;
+  const tg=document.getElementById('tag-sensor');
+  if(r.model_mode==='onnx'){tg.className='mode-tag onnx';tg.textContent='ONNX RÉEL';}
+  else if(r.model_mode==='demo'){tg.className='mode-tag demo';tg.textContent='DÉMO API';}
+  else{tg.className='mode-tag local';tg.textContent='LOCAL';}
+  document.getElementById('sub-sensor').textContent=`Conf: ${(r.confidence*100).toFixed(0)}%  |  Classe: ${r.gas_class}  |  Safe zone: ${r.safe_zone_applied?'Oui':'Non'}`;
+  const gc=v=>v>.55?'var(--fire)':v>.35?'var(--amber)':'var(--green)';
+  const sp=r.smoke_prob,wr=r.fire_risk_prob;
+  document.getElementById('bar-smoke').style.width=(sp*100)+'%';document.getElementById('bar-smoke').style.background=gc(sp);
+  document.getElementById('val-smoke').textContent=sp.toFixed(3);document.getElementById('val-smoke').style.color=gc(sp);
+  document.getElementById('bar-weather').style.width=(wr*100)+'%';document.getElementById('bar-weather').style.background=gc(wr);
+  document.getElementById('val-weather').textContent=wr.toFixed(3);document.getElementById('val-weather').style.color=gc(wr);
+  const p=r.class_proba||{};
+  const clsC={Mixture:'var(--amber)',NoGas:'var(--green)',Perfume:'var(--blue)',Smoke:'var(--fire)'};
+  const hasProba=Object.values(p).some(v=>v>0);
+  const pFallback=hasProba?p:(()=>{const sp=r.smoke_prob||0;return{NoGas:+(1-sp*.9).toFixed(4),Smoke:+sp.toFixed(4),Mixture:+(sp*.3).toFixed(4),Perfume:+Math.max(0,.05-sp*.05).toFixed(4)};})();
+  ['NoGas','Smoke','Mixture','Perfume'].forEach(cls=>{
+    const v=pFallback[cls]||0;
+    const el=document.getElementById('pb-'+cls);if(el){el.style.width=(v*100).toFixed(1)+'%';el.style.background=clsC[cls];}
+    const ev=document.getElementById('pv-'+cls);if(ev)ev.textContent=(v*100).toFixed(0)+'%';
+  });
+  const an=(r.gates_applied||[]).map(g=>g.name);
+  [['cold_temp','g-cold','g-cold-txt','Temp froide (<15°C)'],['high_humidity','g-humid','g-humid-txt','Humidité haute (>75%)'],['low_weather_risk','g-lowrisk','g-lowrisk-txt','Faible risque météo (<0.30)']].forEach(([id,dotId,txtId,lbl])=>{
+    const active=an.includes(id);
+    document.getElementById(dotId).className='gate-dot '+(active?'on':'off');
+    const g=(r.gates_applied||[]).find(x=>x.name===id);
+    document.getElementById(txtId).textContent=g?lbl+' ← '+g.label.split('→')[1]?.trim():lbl+' — inactif';
+  });
+  const sz=r.safe_zone_applied;
+  document.getElementById('g-safe').className='gate-dot '+(sz?'on':'off');
+  document.getElementById('g-safe-txt').textContent='Zone sûre capteurs'+(sz?' ← ACTIVE':'  — inactif');
+  if(r.spread_speed) renderSpread(r.spread_speed);
+  if(r.alert!==lastSensorLevel){
+    const cls={FIRE:'lf',WARNING:'lw',SAFE:'ls'};
+    const msgs={FIRE:`🔥 INCENDIE CAPTEURS — fumée=${sp.toFixed(3)} météo=${wr.toFixed(3)}`,WARNING:`⚠️ Avertissement capteurs — fumée=${sp.toFixed(3)}`,SAFE:`✅ Capteurs: état sûr`};
+    log(msgs[r.alert],cls[r.alert]);lastSensorLevel=r.alert;
+  }
+  updateGlobalAlert(r.alert, lastVisionAlert||'CLEAR');
+}
+
+function renderSpread(s){
+  const colV={green:'var(--green)',amber:'var(--amber)',orange:'var(--orange)',red:'var(--red)'};
+  const lc={green:{b:'#16422a',t:'var(--green)'},amber:{b:'#4a3200',t:'var(--amber)'},orange:{b:'#5c2d00',t:'var(--orange)'},red:{b:'#4a1a0a',t:'var(--red)'}};
+  const col=colV[s.color];
+  document.getElementById('spread-card').className='spread-card '+s.color;
+  document.getElementById('sp-num').textContent=s.speed_m_per_min.toFixed(2);
+  document.getElementById('sp-num').style.color=col;
+  const lv=document.getElementById('sp-lv');lv.textContent=s.level;lv.style.borderColor=lc[s.color].b;lv.style.color=lc[s.color].t;
+  document.getElementById('sp-desc').textContent=s.description+' — '+(s.speed_m_per_min*.06).toFixed(3)+' km/h';
+  document.getElementById('sp-gauge').style.width=Math.min(100,(s.speed_m_per_min/40)*100)+'%';
+  document.getElementById('sp-gauge').style.background=col;
+  const f=s.factors;
+  document.getElementById('f-wind').textContent=f.F_vent;document.getElementById('f-wind').style.color=f.F_vent>2?'var(--fire)':f.F_vent>1.3?'var(--amber)':'var(--blue)';
+  document.getElementById('f-hum').textContent=f.F_humidite;document.getElementById('f-hum').style.color=f.F_humidite<.3?'var(--fire)':f.F_humidite<.6?'var(--amber)':'var(--green)';
+  document.getElementById('f-temp').textContent=f.F_temp;document.getElementById('f-temp').style.color=f.F_temp>1.2?'var(--amber)':'var(--blue)';
+  document.getElementById('f-season').textContent=f.F_saison;document.getElementById('f-season').style.color=f.F_saison>1.1?'var(--amber)':'var(--muted2)';
+  document.getElementById('f-rain').textContent=f.F_pluie;document.getElementById('f-rain').style.color=f.F_pluie<.3?'var(--green)':'var(--muted2)';
+}
+
+/* ── Vision render ── */
+function renderVision(d){
+  const s=d.summary;
+  const nFire=d.fire.filter(x=>x.class_id===1).length;
+  const nSmoke=d.fire.filter(x=>x.class_id===0).length;
+  const nPers=d.intruder.filter(x=>x.class_id===0).length;
+  const nAni=d.intruder.filter(x=>x.class_id===1).length;
+  document.getElementById('vis-fire').textContent=nFire;
+  document.getElementById('vis-smoke').textContent=nSmoke;
+  document.getElementById('vis-person').textContent=nPers;
+  document.getElementById('vis-animal').textContent=nAni;
+  document.getElementById('vis-fire').style.color=nFire?'var(--fire)':'var(--muted2)';
+  document.getElementById('vis-smoke').style.color=nSmoke?'var(--orange)':'var(--muted2)';
+  document.getElementById('vis-person').style.color=nPers?'var(--blue)':'var(--muted2)';
+  document.getElementById('vis-animal').style.color=nAni?'var(--cyan)':'var(--muted2)';
+  const va=s.vision_alert;
+  const vInfo={FIRE:{icon:'🔥',title:'FEU DÉTECTÉ',col:'var(--fire)',cls:'fire'},SMOKE:{icon:'💨',title:'FUMÉE DÉTECTÉE',col:'var(--orange)',cls:'smoke'},INTRUSION:{icon:'⚠️',title:'INTRUSION',col:'var(--blue)',cls:'intrusion'},CLEAR:{icon:'📷',title:'CLEAR',col:'var(--green)',cls:'clear'}}[va]||{icon:'📷',title:'CLEAR',col:'var(--green)',cls:'clear'};
+  document.getElementById('card-vision').className='alert-card '+vInfo.cls;
+  document.getElementById('icon-vision').textContent=vInfo.icon;
+  document.getElementById('title-vision').textContent=vInfo.title;
+  document.getElementById('title-vision').style.color=vInfo.col;
+  document.getElementById('tag-vision').style.display='inline-block';
+  const parts=[];
+  if(nFire)parts.push(`${nFire} feu`);if(nSmoke)parts.push(`${nSmoke} fumée`);if(nPers)parts.push(`${nPers} pers.`);if(nAni)parts.push(`${nAni} animal`);
+  document.getElementById('sub-vision').textContent=parts.length?parts.join(' | '):'Aucune détection';
+  const overlay=document.getElementById('cam-overlay');overlay.innerHTML='';
+  if(nFire)overlay.innerHTML+=`<div class="det-badge fire-b">🔥 Feu ×${nFire}</div>`;
+  if(nSmoke)overlay.innerHTML+=`<div class="det-badge smoke-b">💨 Fumée ×${nSmoke}</div>`;
+  if(nPers)overlay.innerHTML+=`<div class="det-badge person-b">👤 Pers. ×${nPers}</div>`;
+  if(nAni)overlay.innerHTML+=`<div class="det-badge animal-b">🐾 Animal ×${nAni}</div>`;
+  if(va!==lastVisionAlert){
+    const cls={FIRE:'lf',SMOKE:'lw',INTRUSION:'lw',CLEAR:'ls'};
+    const msgs={FIRE:`🔥 VISION: Feu détecté par caméra!`,SMOKE:`💨 VISION: Fumée détectée`,INTRUSION:`⚠️ VISION: Intrusion (pers=${nPers} animal=${nAni})`,CLEAR:`📷 VISION: Zone dégagée`};
+    log(msgs[va],cls[va]||'li');lastVisionAlert=va;
+  }
+  updateGlobalAlert(lastSensorLevel||'SAFE', va);
+}
+
+/* ── Alerte globale ── */
+function updateGlobalAlert(sensorLevel, visionAlert){
+  let level='SAFE';
+  if(sensorLevel==='FIRE'||visionAlert==='FIRE')level='FIRE';
+  else if(sensorLevel==='WARNING'||visionAlert==='SMOKE'||visionAlert==='INTRUSION')level='WARNING';
+  const ga=document.getElementById('global-alert');
+  const bc={SAFE:{b:'#16422a',c:'var(--green)',t:'● SAFE'},WARNING:{b:'#4a3200',c:'var(--amber)',t:'⚠ WARNING'},FIRE:{b:'#4a1a0a',c:'var(--fire)',t:'🔥 FIRE'}};
+  ga.style.borderColor=bc[level].b;ga.style.color=bc[level].c;ga.textContent=bc[level].t;
+  triggerFireAlarm(level==='FIRE');
+}
+
+/* ── Update capteurs ── */
+async function updateSensors(){
+  refreshDisplays();
+  const payload=getVals();
+  if(apiOnline){
+    try{
+      const r=await fetch(API+'/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(3000)});
+      const d=await r.json();
+      if(d.success){renderSensors(d);return;}
+    }catch{}
+  }
+  renderSensors(localSensors(payload));
+}
+
+/* ── Caméra ── */
+function applyCameraState(nextState, source='sync'){
+  const prev = camActive;
+  camActive = Boolean(nextState);
+
+  if(camActive){
+    document.getElementById('cam-inactive').style.display='none';
+    const img = document.getElementById('cam-img');
+    if(!img.src || !img.src.includes('/camera/stream')){
+      img.src = API + '/camera/stream?ts=' + Date.now();
+    }
+    img.style.display='block';
+    document.getElementById('btn-start').style.display='none';
+    document.getElementById('btn-stop').style.display='inline-block';
+    document.getElementById('pill-cam').className='pill ok';
+    document.getElementById('pill-cam').textContent='● Cam ON';
+    startDetPoll();
+  }else{
+    document.getElementById('cam-img').style.display='none';
+    document.getElementById('cam-inactive').style.display='flex';
+    document.getElementById('btn-start').style.display='inline-block';
+    document.getElementById('btn-stop').style.display='none';
+    document.getElementById('pill-cam').className='pill info';
+    document.getElementById('pill-cam').textContent='Cam OFF';
+    document.getElementById('cam-overlay').innerHTML='';
+    clearInterval(detPollTimer);
+  }
+
+  if(prev !== camActive && source === 'sync'){
+    log(camActive ? 'Caméra activée depuis un autre client' : 'Caméra arrêtée depuis un autre client','li');
+  }
+}
+
+async function startCamera(){
+  if(!apiOnline){log('API requise pour la caméra. Lance: python server.py','lw');return;}
+  try{
+    const r=await fetch(API+'/camera/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cam_id:0})});
+    const d=await r.json();
+    if(d.ok){
+      applyCameraState(true, 'local');
+      log('Caméra démarrée — flux MJPEG actif','li');
+    }else{log('Erreur caméra: '+d.error,'lw');}
+  }catch{log('Impossible de contacter l\'API pour la caméra','lw');}
+}
+
+async function stopCamera(){
+  try{await fetch(API+'/camera/stop',{method:'POST'});}catch{}
+  applyCameraState(false, 'local');
+  log('Caméra arrêtée','li');
+}
+
+function startDetPoll(){
+  clearInterval(detPollTimer);
+  detPollTimer=setInterval(async()=>{
+    if(!camActive)return;
+    try{const r=await fetch(API+'/camera/detections');const d=await r.json();renderVision(d);}catch{}
+  },600);
+}
+
+/* ── Presets ── */
+function preset(name){
+  const P={
+    normal: {mq2:90, mq6:75, temp:18,rh:78,wind:6, rain:1.5,month:4},
+    gas:    {mq2:650,mq6:500,temp:24,rh:52,wind:2, rain:0,  month:3},
+    hotday: {mq2:115,mq6:95, temp:38,rh:16,wind:22,rain:0,  month:7},
+    fire:   {mq2:820,mq6:710,temp:42,rh:10,wind:28,rain:0,  month:8},
+    extreme:{mq2:1000,mq6:950,temp:47,rh:5,wind:45,rain:0,  month:8},
+  }[name];
+  document.getElementById('s-mq2').value=P.mq2;document.getElementById('s-mq6').value=P.mq6;
+  document.getElementById('s-temp').value=P.temp;document.getElementById('s-rh').value=P.rh;
+  document.getElementById('s-wind').value=P.wind;document.getElementById('s-rain').value=P.rain;
+  currentMonth=P.month;
+  document.querySelectorAll('.mb').forEach((b,i)=>b.classList.toggle('active',i+1===P.month));
+  const scenMap={normal:'normal',gas:'gas',hotday:'hotday',fire:'fire',extreme:'extreme'};
+  currentScenario = scenMap[name] || 'normal';
+  refreshChartData(currentScenario);
+  log('Scénario: '+name,'li');trigger();
+}
+
+/* ── ntfy ── */
+async function ntfySave(){
+  if(!apiOnline){log('API hors ligne — impossible d\'appliquer','lw');return;}
+  const topic=document.getElementById('ntfy-topic').value.trim();const server=document.getElementById('ntfy-server').value.trim();const cooldown=parseInt(document.getElementById('ntfy-cooldown').value)||60;
+  if(!topic){log('ntfy : renseignez un topic','lw');return;}
+  try{const body={topic,cooldown};if(server)body.server=server;const r=await fetch(API+'/ntfy/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(d.ok)log(`✅ ntfy configuré → topic : ${d.topic}  cooldown : ${d.cooldown}s`,'ls');}catch{log('Erreur connexion API ntfy','lw');}
+}
+async function ntfyTest(){
+  if(!apiOnline){log('API requise','lw');return;}
+  try{const r=await fetch(API+'/ntfy/test',{method:'POST'});const d=await r.json();if(d.ok){const badge=document.getElementById('ntfy-status-badge');badge.textContent='✓ Actif';badge.className='tg-status on';log('📱 Notification de test envoyée — vérifiez votre téléphone','ls');}}catch{log('Erreur réseau ntfy test','lw');}
+}
+async function loadNtfyConfig(){
+  if(!apiOnline)return;
+  try{const r=await fetch(API+'/ntfy/config');const d=await r.json();if(d.topic){document.getElementById('ntfy-topic').value=d.topic;document.getElementById('ntfy-server').value=d.server!=='https://ntfy.sh'?d.server:'';document.getElementById('ntfy-cooldown').value=d.cooldown;}}catch{}
+}
+
+/* ── Theme ── */
+let lightMode=false;
+function toggleTheme(){
+  lightMode=!lightMode;document.body.classList.toggle('light-mode',lightMode);
+  const btn=document.getElementById('btn-theme');btn.textContent=lightMode?'🌙 DARK':'☀ LIGHT';btn.style.color=lightMode?'var(--fire)':'var(--muted2)';
+  if(weatherChart){weatherChart.destroy();weatherChart=null;initWeatherChart();}
+}
+
+/* ── Sound ── */
+let soundEnabled=true,audioCtx=null,alarmInterval=null;
+function toggleSound(){soundEnabled=!soundEnabled;const btn=document.getElementById('btn-sound');btn.textContent=soundEnabled?'🔔 SON ON':'🔕 SON OFF';btn.style.color=soundEnabled?'var(--green)':'var(--muted2)';if(!soundEnabled&&alarmInterval){clearInterval(alarmInterval);alarmInterval=null;}}
+function getAudioCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+function playFireBeep(){try{const ctx=getAudioCtx();const freqs=[880,1100,880,1100];let t=ctx.currentTime;freqs.forEach((f,i)=>{const osc=ctx.createOscillator();const gain=ctx.createGain();osc.connect(gain);gain.connect(ctx.destination);osc.type='square';osc.frequency.setValueAtTime(f,t+i*.15);gain.gain.setValueAtTime(0,t+i*.15);gain.gain.linearRampToValueAtTime(.35,t+i*.15+.02);gain.gain.linearRampToValueAtTime(0,t+i*.15+.13);osc.start(t+i*.15);osc.stop(t+i*.15+.15);});}catch(e){}}
+function triggerFireAlarm(active){document.body.classList.toggle('fire-alarm',active);if(active&&soundEnabled){if(!alarmInterval){playFireBeep();alarmInterval=setInterval(playFireBeep,2500);}}else{if(alarmInterval){clearInterval(alarmInterval);alarmInterval=null;}}}
+
+/* ── Init ── */
+(async()=>{
+  await checkApi();
+  await updateSensors();
+  initWeatherChart();
+  setInterval(checkApi,2000);
+  setInterval(updateSensors,5000);
+  await loadNtfyConfig();
+})();
+</script>
+</body>
+</html>

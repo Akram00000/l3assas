@@ -1,0 +1,51 @@
+{
+  "version": "v5",
+  "class_order": [
+    "Mixture",
+    "NoGas",
+    "Perfume",
+    "Smoke"
+  ],
+  "risk_weights": [
+    0.95,
+    0.0,
+    0.02,
+    0.8
+  ],
+  "class_risk_map": {
+    "Mixture": 0.95,
+    "NoGas": 0.0,
+    "Perfume": 0.02,
+    "Smoke": 0.8
+  },
+  "safe_zone": {
+    "mq2_threshold": 150,
+    "mq6_threshold": 120,
+    "override_smoke_prob": 0.05
+  },
+  "prob_clip_max": 0.85,
+  "fusion_thresholds": {
+    "smoke_fire": 0.4,
+    "smoke_warning": 0.35,
+    "risk_fire": 0.75,
+    "risk_warning": 0.8
+  },
+  "v5_gates": {
+    "cold_temp_threshold": 15,
+    "cold_temp_multiplier": 0.25,
+    "weather_gate_threshold": 0.3,
+    "weather_gate_min_weight": 0.3,
+    "high_rh_threshold": 75,
+    "high_rh_min_multiplier": 0.4
+  },
+  "changelog": {
+    "v4_to_v5": [
+      "Fixed mq2_threshold: 320 -> 150 (matches trained pipeline)",
+      "Fixed mq6_threshold: 320 -> 120 (matches trained pipeline)",
+      "Fixed prob_clip_max: 1 -> 0.85 (matches trained pipeline)",
+      "Fixed fusion smoke_fire threshold: 0.8 -> 0.75 (matches trained pipeline)",
+      "Fixed fusion risk_fire threshold: 0.6 -> 0.50 (matches trained pipeline)",
+      "Added v5_gates: cold temp gate, weather-contextual gas dampening, high RH suppression"
+    ]
+  }
+}
